@@ -1,0 +1,410 @@
+# Affect Expert Configuration Template
+# Specialized configuration for emotional state detection and modulation
+
+affect_expert:
+  # Basic configuration inherited from step2_base.yaml
+  inherit_from: "step2_base"
+  
+  # Expert identity and role
+  expert_info:
+    name: "Affect Expert"
+    domain: "affect_processing"
+    role: "modulatory"  # modulatory, primary, supportive
+    primary_functions:
+      - "emotion_recognition"
+      - "sentiment_analysis"
+      - "social_cue_processing"
+      - "affect_modulation"
+    secondary_functions:
+      - "mood_detection"
+      - "empathy_modeling"
+      - "emotional_contagion"
+      - "social_awareness"
+      
+  # Architecture configuration
+  architecture:
+    type: "affect_encoder"  # affect_encoder, emotion_classifier, sentiment_analyzer
+    d_model: 512
+    input_modalities: ["text", "visual"]  # Visual will be enabled in Step 3
+    
+    # Affect detection encoders
+    encoders:
+      text_affect:
+        type: "bert_based"
+        hidden_size: 512
+        dropout: 0.1
+        emotion_categories: 8  # Basic emotions: joy, sadness, anger, fear, surprise, disgust, neutral, love
+        
+      visual_affect:
+        type: "resnet_based"  # Will be enabled in Step 3
+        hidden_size: 512
+        emotion_categories: 8
+        facial_emotion: false  # Will be enabled in Step 3
+        
+    # Affect state tracking
+    affect_tracking:
+      lstm_hidden_size: 64
+      lstm_layers: 1
+      affect_dimensions: ["valence", "arousal", "dominance"]
+      
+  # Input processing for affect detection
+  input_processing:
+    # Text affect detection
+    text_processing:
+      tokenizer: "bert_tokenizer"
+      max_length: 512
+      emotion_lexicon: true  # Use emotion lexicons
+      sentiment_markers: true  # Detect sentiment indicators
+      
+    # Visual affect detection (Step 3)
+    visual_processing:
+      enabled: false  # Step 3 feature
+      image_size: [224, 224]
+      face_detection: false  # Step 3 feature
+      emotion_recognition: false  # Step 3 feature
+      
+    # Social cue processing
+    social_cues:
+      politeness_indicators: true
+      formality_markers: true
+      emotional_language: true
+      sarcasm_detection: false  # Will be enabled in Step 3
+      
+  # Affect-specific capabilities
+  capabilities:
+    # Emotion recognition
+    emotion_recognition:
+      enabled: true
+      emotion_categories: 8
+      
+      # Basic emotions model
+      basic_emotions:
+        - "joy"         # Positive, high arousal
+        - "sadness"     # Negative, low arousal  
+        - "anger"       # Negative, high arousal
+        - "fear"        # Negative, high arousal
+        - "surprise"    # Neutral, high arousal
+        - "disgust"     # Negative, medium arousal
+        - "neutral"     # Neutral, neutral arousal
+        - "love"        # Positive, high arousal (compound emotion)
+        
+      # Emotion intensity
+      intensity_levels: 3  # low, medium, high
+      
+    # Sentiment analysis
+    sentiment_analysis:
+      enabled: true
+      polarity: "ternary"  # ternary: negative/neutral/positive
+      confidence_threshold: 0.7
+      
+    # Social cue processing
+    social_cues:
+      enabled: true
+      
+      # Communication style
+      communication_style:
+        formal_informal: true
+        polite_aggressive: true
+        cooperative_competitive: true
+        
+      # Social emotions
+      social_emotions:
+        empathy: true
+        guilt_shame: true
+        pride_contempt: true
+        gratitude_resentment: true
+        
+    # Affect modulation
+    affect_modulation:
+      enabled: false  # Log-only in Step 2
+      modulation_strength: 0.3
+      integration_method: "soft"  # soft, hard, multiplicative
+      
+      # Modulation parameters
+      valence_influence: 0.3   # Social vs analytical bias
+      arousal_influence: 0.2   # Exploration vs exploitation
+      dominance_influence: 0.1 # Confidence vs caution
+      
+  # Performance parameters
+  performance:
+    # Affect detection latency (can be slower than primary experts)
+    max_inference_time_ms: 20
+    target_throughput_qps: 50  # Fast for real-time affect tracking
+    
+    # Affect detection accuracy
+    emotion_detection_accuracy: 0.70  # Moderate accuracy expected
+    sentiment_accuracy: 0.80         # Higher accuracy for sentiment
+    affect_dimension_accuracy: 0.75  # VAD dimension prediction
+    
+    # Temporal consistency
+    temporal_consistency_threshold: 0.8  # Affect state should be stable
+    emotion_transition_penalty: 0.1     # Penalize rapid emotion changes
+    
+  # Memory integration
+  memory_integration:
+    # Affect history tracking
+    affect_memory:
+      enabled: true
+      history_length: 100  # Store last 100 affect states
+      pattern_detection: true
+      trend_analysis: true
+      
+    # Contextual affect memory
+    context_memory:
+      situation_based_affect: true
+      person_specific_bias: false  # Will be enabled in Step 3
+      cultural_factors: false      # Will be enabled in Step 3
+      
+  # Affect state representation
+  affect_state:
+    # VAD (Valence-Arousal-Dominance) model
+    valence:
+      range: [-1.0, 1.0]  # negative to positive
+      default: 0.0
+      precision: 0.01
+      
+    arousal:
+      range: [0.0, 1.0]   # calm to excited
+      default: 0.5
+      precision: 0.01
+      
+    dominance:
+      range: [0.0, 1.0]   # submissive to dominant  
+      default: 0.5
+      precision: 0.01
+      
+    # Discrete emotions
+    discrete_emotion:
+      categories: 8
+      confidence_threshold: 0.5
+      temporal_smoothing: true
+      
+  # Training configuration for affect expert
+  training:
+    # Task-specific training
+    tasks:
+      - "emotion_classification"
+      - "sentiment_analysis"
+      - "affect_regression"  # VAD prediction
+      - "social_cue_detection"
+      
+    # Datasets for emotion recognition
+    emotion_datasets:
+      - "goemotions"
+      - "emotion_lines"
+      - "valence_arousal_datasets"
+      
+    # Synthetic affect generation
+    synthetic_affect:
+      enabled: true
+      augmentation_factor: 2  # Double the data
+      
+    # Loss weights
+    loss_weights:
+      emotion_classification: 0.4
+      sentiment_analysis: 0.3
+      affect_regression: 0.2
+      social_cue_detection: 0.1
+      
+    # Optimization
+    learning_rate: 1e-4
+    weight_decay: 0.01
+    
+    # Multi-task learning for affect
+    multi_task_loss: "weighted_sum"
+    
+  # Evaluation configuration
+  evaluation:
+    datasets:
+      # Emotion recognition
+      - "goemotions"
+      - "emotion_classification_dataset"
+      
+      # Sentiment analysis
+      - "sentiment140"
+      - "movie_reviews"
+      - "product_reviews"
+      
+      # Affect dimensions
+      - "valence_arousal_dataset"
+      - "vad_annotations"
+      
+    metrics:
+      emotion_classification:
+        accuracy: true
+        f1_score: true
+        confusion_matrix: true
+        
+      sentiment_analysis:
+        accuracy: true
+        precision: true
+        recall: true
+        
+      affect_regression:
+        mae: true      # Mean Absolute Error
+        mse: true      # Mean Squared Error
+        pearson_r: true # Correlation coefficient
+        
+  # Deployment configuration
+  deployment:
+    # Real-time affect tracking
+    real_time:
+      enabled: true
+      stream_processing: true
+      affect_update_frequency: "interaction"  # interaction, batch, time_based
+      
+    # Serving parameters
+    serving:
+      batch_size: 128  # Large batch for affect analysis
+      timeout_ms: 1000  # Generous timeout
+      streaming_mode: true
+      
+    # Caching (affect states can be cached)
+    caching:
+      enabled: true
+      cache_affect_history: true
+      cache_size: 5000
+      cache_strategy: "fifo"  # First-in-first-out for temporal data
+      
+  # Integration with routing system
+  routing_integration:
+    # Modulatory role - affects other experts
+    modulatory_role: true
+    influence_strength: 0.3  # How much affect can modulate routing
+    
+    # Affect-routing correlations
+    routing_influences:
+      positive_valence:
+        language_expert: 1.2    # Boost social tasks
+        symbolic_expert: 0.8    # Reduce analytical bias
+        
+      high_arousal:
+        exploration_experts: 1.3  # More exploration
+        conservative_experts: 0.7 # Less conservative
+        
+      high_dominance:
+        leadership_experts: 1.2   # More assertive
+        supportive_experts: 0.9   # Slightly less supportive
+        
+    # Expertise in affect-related tasks
+    expertise_levels:
+      emotion_recognition: 0.9
+      sentiment_analysis: 0.9
+      social_understanding: 0.8
+      empathy_modeling: 0.6  # Basic level in Step 2
+      emotional_intelligence: 0.7
+      
+  # Affect logging and monitoring
+  logging:
+    # Comprehensive affect logging
+    affect_logging:
+      enabled: true
+      detailed_logging: true
+      affect_state_logging: true
+      routing_influence_logging: true
+      
+    # Log entries
+    log_entries:
+      - "affect_state_transitions"
+      - "emotion_detection_confidence"
+      - "routing_modulation_effects"
+      - "affect_accuracy_metrics"
+      
+  # Quality assurance for affect detection
+  quality_assurance:
+    # Affect detection validation
+    validation:
+      emotion_consistency_check: true
+      affect_dimension_bounds: true
+      temporal_smoothness: true
+      
+    # Ethical considerations
+    ethical_considerations:
+      privacy_protection: true
+      bias_detection: true
+      fairness_evaluation: true
+      
+  # Configuration overrides from base
+  base_overrides:
+    routing:
+      experts:
+        affect:
+          activation_threshold: 0.3  # Lower threshold for modulatory expert
+          capacity_weight: 0.8       # Lower capacity usage
+          performance_weight: 0.6    # Lower performance requirement
+          
+    performance_tuning:
+      latency:
+        budget_allocation:
+          affect_expert: 20  # ms
+          
+  # Expert metadata
+  metadata:
+    version: "0.2.0"
+    author: "mini-biai-1 Team"
+    description: "Affect expert for emotion recognition and modulatory processing"
+    role_explanation: |
+      This expert operates primarily as a modulatory system, detecting and tracking
+      emotional states to influence the behavior of other experts without directly
+      processing the main task.
+      
+    capabilities_summary: |
+      This expert specializes in affect processing including:
+      - Recognition of discrete emotions from text and behavior
+      - Prediction of continuous affect dimensions (VAD model)
+      - Analysis of social cues and communication patterns
+      - Modulation of other experts based on emotional context
+      - Real-time affect state tracking and logging
+      
+    limitations: |
+      Current limitations in Step 2:
+      - Visual affect detection not implemented
+      - Affect modulation is log-only (doesn't modify routing)
+      - Limited social cue processing
+      - No empathy modeling or emotional intelligence
+      - Basic emotion categories only
+      These will be enhanced in Step 3.
+      
+  # Validation rules
+  validation:
+    required_fields:
+      - "expert_info.name"
+      - "expert_info.role"
+      - "capabilities.emotion_recognition.enabled"
+      - "affect_state"
+      
+    value_constraints:
+      valence: [-1.0, 1.0]
+      arousal: [0.0, 1.0]
+      dominance: [0.0, 1.0]
+      emotion_categories: [4, 16]
+      
+  # Safety and ethics
+  safety:
+    # Bias detection and mitigation
+    bias_monitoring:
+      gender_bias: true
+      cultural_bias: true
+      emotion_expression_bias: true
+      
+    # Privacy protection
+    privacy:
+      anonymize_affect_data: true
+      differential_privacy: false  # Will be enabled in Step 3
+      data_retention_policy: "30_days"
+      
+  # Future enhancements roadmap
+  roadmap:
+    step_3_enhancements:
+      - "Visual affect detection"
+      - "Active affect modulation"
+      - "Empathy modeling"
+      - "Facial emotion recognition"
+      - "Social intelligence"
+      
+    step_4_enhancements:
+      - "Personalized affect models"
+      - "Cultural affect adaptation"
+      - "Long-term mood tracking"
+      - "Affect-based memory formation"
+      - "Embodied affect recognition"

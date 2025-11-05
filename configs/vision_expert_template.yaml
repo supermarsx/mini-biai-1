@@ -1,0 +1,326 @@
+# Vision Expert Configuration Template
+# Specialized configuration for visual processing capabilities
+
+vision_expert:
+  # Basic configuration inherited from step2_base.yaml
+  inherit_from: "step2_base"
+  
+  # Expert identity and role
+  expert_info:
+    name: "Vision Expert"
+    domain: "visual_processing"
+    primary_functions:
+      - "image_understanding"
+      - "visual_scene_analysis"
+      - "image_to_text_tasks"
+      - "multimodal_alignment"
+    secondary_functions:
+      - "visual_question_answering"
+      - "image_captioning"
+      - "visual_reasoning"
+      - "scene_description"
+      
+  # Architecture configuration
+  architecture:
+    type: "cnn_transformer"  # cnn_transformer, vision_transformer, clip_model
+    input_channels: 3  # RGB
+    hidden_size: 512
+    
+    # CNN backbone
+    cnn_backbone:
+      type: "resnet18"  # resnet18, resnet50, efficientnet
+      pretrained: true
+      freeze_backbone: false
+      
+    # Vision Transformer
+    vit_config:
+      patch_size: 16
+      n_heads: 8
+      n_layers: 4
+      hidden_size: 512
+      
+    # Multi-modal transformer
+    multimodal_transformer:
+      n_heads: 8
+      n_layers: 3
+      cross_attention: true
+      
+  # Input processing
+  input_processing:
+    # Image preprocessing
+    image_size: [224, 224]  # Standard ResNet input size
+    normalize: true
+    mean: [0.485, 0.456, 0.406]  # ImageNet mean
+    std: [0.229, 0.224, 0.225]   # ImageNet std
+    
+    # Data augmentation for training
+    augmentation:
+      enabled: true
+      methods:
+        - "random_resize_crop"
+        - "horizontal_flip"
+        - "color_jitter"
+        - "gaussian_blur"
+        
+    # Supported formats
+    supported_formats: ["jpg", "jpeg", "png", "bmp", "tiff"]
+    max_file_size_mb: 10
+    
+  # Vision-specific capabilities
+  capabilities:
+    # Image understanding
+    image_understanding:
+      enabled: true
+      classification:
+        enabled: true
+        num_classes: 1000  # ImageNet classes
+        confidence_threshold: 0.5
+        
+      object_detection:
+        enabled: false  # Will be enabled in Step 3
+        confidence_threshold: 0.7
+        
+      scene_recognition:
+        enabled: true
+        scene_categories: 365  # Places365 dataset
+        
+    # Visual scene analysis
+    scene_analysis:
+      enabled: true
+      object_detection: false  # Will be enabled in Step 3
+      spatial_reasoning: true
+      depth_estimation: false  # Will be enabled in Step 3
+      
+    # Image-to-text tasks
+    image_to_text:
+      enabled: true
+      image_captioning:
+        enabled: true
+        max_caption_length: 100
+        
+      visual_question_answering:
+        enabled: false  # Requires question processing
+        question_types: ["what", "where", "when", "who", "why", "how"]
+        
+      visual_reasoning:
+        enabled: false  # Will be enabled in Step 3
+        reasoning_types: ["comparison", "counting", "spatial"]
+        
+    # Multi-modal alignment
+    multimodal_alignment:
+      enabled: true
+      clip_model: false  # Will be enabled in Step 3
+      cross_modal_retrieval: true
+      vision_language_fusion: "cross_attention"
+      
+  # Performance parameters
+  performance:
+    # Latency requirements
+    max_inference_time_ms: 100
+    target_throughput_qps: 10
+    
+    # Accuracy requirements  
+    min_accuracy: 0.75
+    evaluation_metrics:
+      - "top1_accuracy"
+      - "top5_accuracy"
+      - "bleu_score"  # For captioning
+      - "rouge_score" # For captioning
+      
+  # Memory integration
+  memory_integration:
+    # Visual context retrieval
+    visual_retrieval:
+      enabled: true
+      similarity_threshold: 0.8
+      retrieval_backend: "faiss"
+      
+    # Expert-specific visual memory
+    visual_memory:
+      image_cache_size: 1000
+      embedding_cache_size: 5000
+      visual_context_weight: 1.0
+      
+  # Affect modulation integration
+  affect_integration:
+    # Visual affect detection
+    affect_detection:
+      enabled: false  # Will be enabled in Step 3
+      emotion_recognition: false
+      facial_emotion: false
+      scene_emotion: false  # Emotional content of scenes
+      
+    # Visual preferences based on affect
+    visual_preferences:
+      color_preferences_by_valence: true
+      complexity_preferences_by_arousal: true
+      
+  # Training configuration for vision expert
+  training:
+    # Task-specific training
+    tasks:
+      - "image_classification"
+      - "image_captioning"
+      - "scene_recognition"
+      - "visual_feature_extraction"
+      
+    # Loss weights
+    loss_weights:
+      classification: 0.4
+      captioning: 0.3
+      feature_learning: 0.2
+      multimodal_alignment: 0.1
+      
+    # Optimization
+    learning_rate: 1e-4
+    weight_decay: 1e-4
+    optimizer: "sgd"  # Better for vision tasks
+    momentum: 0.9
+    
+    # Learning rate scheduling
+    lr_scheduling:
+      type: "step_decay"
+      step_size: 30
+      gamma: 0.1
+      
+  # Evaluation configuration
+  evaluation:
+    datasets:
+      # Image classification
+      - "imagenet"
+      
+      # Scene recognition
+      - "places365"
+      
+      # Image captioning
+      - "ms_coco"
+      - "flickr30k"
+      
+      # Multi-modal
+      - "clip_benchmark"
+      
+    metrics:
+      classification:
+        top1_accuracy: true
+        top5_accuracy: true
+        
+      captioning:
+        enabled: true
+        metrics: ["bleu", "rouge", "meteor", "cider"]
+        
+      retrieval:
+        enabled: true
+        metrics: ["recall@k", "map"]
+        
+  # Deployment configuration
+  deployment:
+    # Serving parameters
+    serving:
+      batch_size: 16  # Smaller due to image processing
+      max_image_size: [512, 512]  # Resize for serving
+      timeout_ms: 10000  # Longer timeout for images
+      
+    # Caching
+    caching:
+      enabled: true
+      cache_images: true
+      cache_size: 500  # Cache processed images
+      cache_embeddings: true
+      embedding_cache_size: 2000
+      
+  # Integration with routing system
+  routing_integration:
+    # Routing preferences
+    preferred_tasks:
+      - "visual_tasks"
+      - "image_analysis"
+      - "multimodal_tasks"
+      - "visual_reasoning"
+      
+    # Image complexity preferences
+    image_complexity_preferences:
+      simple_images: 0.9
+      complex_scenes: 0.8
+      detailed_objects: 0.9
+      artistic_content: 0.7
+      
+    # Expertise levels
+    expertise_levels:
+      image_classification: 0.9
+      scene_understanding: 0.8
+      object_recognition: 0.7  # Limited in Step 2
+      visual_reasoning: 0.6    # Limited in Step 2
+      artistic_analysis: 0.5   # Basic level
+      
+  # Hardware considerations
+  hardware:
+    # GPU memory requirements
+    gpu_memory_required_gb: 2.0
+    
+    # Mixed precision
+    mixed_precision: true
+    
+    # Batch size recommendations
+    recommended_batch_sizes:
+      training: 32
+      inference: 16
+      
+  # Configuration overrides from base
+  base_overrides:
+    routing:
+      experts:
+        vision:
+          activation_threshold: 0.5
+          capacity_weight: 1.0
+          
+    performance_tuning:
+      latency:
+        budget_allocation:
+          vision_expert: 100  # ms
+          
+  # Expert metadata
+  metadata:
+    version: "0.2.0"
+    author: "mini-biai-1 Team"  
+    description: "Vision expert for image processing and visual understanding"
+    capabilities_summary: |
+      This expert specializes in visual processing capabilities including:
+      - Image classification and understanding
+      - Scene analysis and recognition
+      - Image-to-text tasks (captioning)
+      - Multi-modal visual-textual alignment
+      - Visual reasoning and spatial analysis
+      
+    limitations: |
+      Current limitations in Step 2:
+      - Limited object detection capabilities
+      - No facial emotion recognition  
+      - Basic visual reasoning only
+      - No depth estimation
+      These will be enhanced in Step 3.
+      
+  # Validation rules
+  validation:
+    required_fields:
+      - "expert_info.name"
+      - "architecture.type"
+      - "input_processing.image_size"
+      - "performance.max_inference_time_ms"
+      
+    value_constraints:
+      max_inference_time_ms: [50, 2000]
+      min_accuracy: [0.0, 1.0]
+      image_size: [[64, 64], [1024, 1024]]
+      
+  # Quality assurance
+  quality_assurance:
+    # Performance benchmarks
+    benchmarks:
+      imagenet_top1: 0.70  # Minimum expected accuracy
+      coco_bleu: 25.0      # Minimum BLEU score for captioning
+      
+    # Stress testing
+    stress_tests:
+      max_image_resolution: [1024, 1024]
+      batch_size_limit: 64
+      memory_usage_limit_gb: 4.0
