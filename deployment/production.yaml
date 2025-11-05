@@ -1,0 +1,299 @@
+# Production Configuration for mini-biai-1 Serving Infrastructure
+
+# Application settings
+application:
+  name: "mini-biai-1-serving"
+  version: "1.0.0"
+  environment: "production"
+  debug: false
+  log_level: "INFO"
+  
+# Server configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
+  workers: 4
+  timeout: 300
+  max_connections: 1000
+  keepalive_timeout: 5
+  connection_limit: 1000
+  
+# Model configuration
+model:
+  name: "microsoft/DialoGPT-medium"
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.9
+  max_model_len: 2048
+  trust_remote_code: true
+  quantization: "none"  # Options: none, 4bit, 8bit
+  load_in_8bit: false
+  load_in_4bit: false
+  
+# vLLM Configuration
+vllm:
+  # Engine settings
+  tensor_parallel_size: 1
+  gpu_memory_utilization: 0.9
+  max_model_len: 2048
+  max_num_seqs: 32
+  max_num_batched_tokens: 8192
+  max_batches: 256
+  
+  # Sampling parameters
+  sampling_params:
+    temperature: 0.7
+    top_p: 0.9
+    top_k: 50
+    max_tokens: 512
+    stop_sequences: ["\n\n", "###", "---"]
+    
+  # Performance settings
+  enforce_eager: false
+  enable_chunked_prefill: true
+  max_num_batched_tokens: 8192
+  max_num_seqs: 32
+  swap_space: 4
+  
+# Batch processing configuration
+batch_processing:
+  max_batch_size: 32
+  batch_timeout: 1.0  # seconds
+  worker_concurrency: 4
+  queue_size: 1000
+  timeout: 300  # seconds
+  
+# Streaming configuration
+streaming:
+  enabled: true
+  chunk_size: 512
+  flush_interval: 0.1  # seconds
+  
+# Monitoring and observability
+monitoring:
+  enabled: true
+  health_check_path: "/health"
+  prometheus_metrics: true
+  otel_service_name: "mini-biai-1-serving"
+  otel_exporter_endpoint: "http://jaeger:14268/api/traces"
+  metrics_port: 9090
+  
+  # Prometheus metrics
+  metrics:
+    enabled: true
+    endpoint: "/prometheus"
+    namespace: "mini_biai_1"
+    
+  # OpenTelemetry tracing
+  tracing:
+    enabled: true
+    service_name: "mini-biai-1-serving"
+    exporter: "otlp"
+    otlp_endpoint: "http://jaeger:14268/api/traces"
+    sample_rate: 0.1
+    
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "json"
+  file: "/app/serving/logs/app.log"
+  max_size: "100M"
+  max_files: 10
+  rotate_on_start: true
+  
+  # Structured logging
+  structured: true
+  include_trace_id: true
+  include_request_id: true
+  
+  # Log levels for different components
+  components:
+    fastapi: "INFO"
+    vllm: "WARNING"
+    uvicorn: "INFO"
+
+# Security configuration
+security:
+  enable_cors: true
+  cors_origins: ["*"]  # Configure properly for production
+  cors_credentials: true
+  cors_methods: ["GET", "POST", "OPTIONS"]
+  cors_headers: ["*"]
+  
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    default_limit: "100/minute"
+    burst_limit: 200
+    
+    # Endpoint-specific limits
+    endpoints:
+      "/generate": "1000/hour"
+      "/generate/stream": "500/hour"
+      "/generate/batch": "10/hour"
+      "/health": "unlimited"
+      "/metrics": "unlimited"
+  
+  # Request validation
+  request_validation:
+    max_request_size: "10MB"
+    max_prompt_length: 10000
+    max_tokens: 4096
+    
+# Database and caching
+database:
+  redis:
+    host: "redis"
+    port: 6379
+    db: 0
+    password: null
+    timeout: 5
+    max_connections: 100
+    
+  postgres:
+    host: "postgres"
+    port: 5432
+    database: "mini_biai_1"
+    username: "prometheus"
+    password: "prometheus123"
+    max_connections: 20
+    
+# Performance optimization
+performance:
+  # Connection pooling
+  connection_pool:
+    min_size: 5
+    max_size: 20
+    max_overflow: 10
+    
+  # Async settings
+  async:
+    max_concurrent_requests: 100
+    request_timeout: 30
+    read_timeout: 30
+    write_timeout: 30
+    
+  # Memory management
+  memory:
+    gc_threshold: 700
+    gc_debug: false
+    memory_limit: "8GB"
+    
+# GPU configuration
+gpu:
+  device_id: 0
+  memory_fraction: 0.9
+  allow_growth: true
+  logging_level: "WARNING"
+  
+# Health check configuration
+health_check:
+  enabled: true
+  path: "/health"
+  interval: 30
+  timeout: 10
+  retries: 3
+  grace_period: 60
+  
+  # Component health checks
+  components:
+    model_loaded: true
+    gpu_available: true
+    redis_connected: false
+    database_connected: false
+
+# Resource limits
+resources:
+  cpu_limit: "4"
+  memory_limit: "16Gi"
+  gpu_limit: "1"
+  storage_limit: "50Gi"
+  
+  # Container limits
+  container:
+    cpu_request: "2"
+    memory_request: "8Gi"
+    gpu_request: "1"
+    ephemeral_storage_request: "1Gi"
+
+# Auto-scaling configuration
+autoscaling:
+  enabled: true
+  min_replicas: 1
+  max_replicas: 10
+  target_cpu_utilization: 70
+  target_memory_utilization: 80
+  scale_down_stabilization_window: 300
+  scale_up_stabilization_window: 60
+  
+# Load balancing
+load_balancing:
+  algorithm: "round_robin"  # Options: round_robin, least_conn, ip_hash
+  health_check:
+    enabled: true
+    interval: 30
+    timeout: 5
+    retries: 3
+    path: "/health"
+    
+# Feature flags
+features:
+  streaming: true
+  batch_processing: true
+  auto_scaling: true
+  monitoring: true
+  caching: true
+  circuit_breaker: false
+  
+# Error handling
+error_handling:
+  default_error_message: "An internal server error occurred"
+  log_errors: true
+  include_traceback: false
+  
+  # Circuit breaker settings (if enabled)
+  circuit_breaker:
+    failure_threshold: 5
+    timeout: 60
+    expected_exception: "Exception"
+    
+# Metrics configuration
+metrics:
+  collection_interval: 15
+  retention_days: 30
+  
+  # Custom metrics
+  custom:
+    - name: "model_inference_time"
+      type: "histogram"
+      description: "Time taken for model inference"
+    - name: "batch_size"
+      type: "histogram"
+      description: "Size of processed batches"
+    - name: "tokens_generated"
+      type: "counter"
+      description: "Total tokens generated"
+    - name: "queue_size"
+      type: "gauge"
+      description: "Current queue size"
+
+# Deployment configuration
+deployment:
+  replicas: 3
+  strategy:
+    type: "RollingUpdate"
+    rolling_update:
+      max_surge: 1
+      max_unavailable: 0
+      
+  # Rolling update settings
+  rolling_update:
+    readiness_probe:
+      initial_delay: 30
+      period: 10
+      timeout: 5
+      failure_threshold: 3
+    liveness_probe:
+      initial_delay: 60
+      period: 30
+      timeout: 10
+      failure_threshold: 3
