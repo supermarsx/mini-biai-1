@@ -1,0 +1,377 @@
+# Step 3 Complete Integration Configuration
+# ==========================================
+# 
+# This configuration file contains all settings for the complete Step 3 integration system,
+# which includes:
+# - Full vision expert with real image understanding  
+# - Active affect modulation (affect affects routing decisions)
+# - Enhanced symbolic reasoning capabilities
+# - Hierarchical memory organization
+# - Real-time learning during interactions
+# - Comprehensive performance optimization
+
+# Step 3 System Configuration
+# ===========================
+
+# Core Model Settings
+MODEL:
+  d_model: 512                     # Model hidden dimension
+  n_experts: 4                     # Number of experts (Language, Vision, Symbolic, Affect)
+  top_k_experts: 2                 # Number of experts to activate per request
+  max_batch_size: 16               # Maximum batch size for processing
+  latency_budget_ms: 150.0         # Target latency budget (Step 3 target)
+
+# Step 3 Key Features - Affect Modulation
+# ========================================
+AFFECT_MODULATION:
+  enabled: true                    # Enable affect detection and modulation
+  real_modulation: true            # CRITICAL: Affect actually changes routing (Step 3 key feature)
+  sensitivity: 0.8                 # How strongly affect influences routing
+  adaptation_rate: 0.15            # How fast affect modulation adapts
+  affect_routing_influence_target: 0.15  # Target affect influence on routing
+  
+  # Affect system configuration
+  system_config:
+    enable_real_modulation: true   # Real vs logging-only mode
+    router_temperature:
+      emotional_sensitivity: 0.8
+      adaptation_rate: 0.15
+      base_temperature: 0.7
+    memory_thresholds:
+      emotional_boost: 0.4
+      consolidation_factor: 0.15
+    response_adaptation:
+      empathy_factor: 0.3
+      support_intensity: 0.4
+
+# Step 3 Key Features - Vision Expert
+# ===================================
+VISION_EXPERT:
+  enabled: true                    # Enable full vision capabilities
+  backbone_type: "vit"             # "vit" or "convnext" backbone
+  spiking_enabled: true            # Enable spiking compatibility
+  ltm_integration: true            # Integrate with LTM memory cache
+  image_size: 224                  # Input image size
+  shared_embedding_dim: 512        # Shared embedding dimension
+  
+  # Vision processing settings
+  processing:
+    batch_size: 16                 # Vision processing batch size
+    max_caption_length: 100        # Maximum caption generation length
+    enable_caching: true           # Enable image embedding cache
+  
+  # Performance targets for vision
+  targets:
+    inference_time_ms: 100.0       # Target vision inference time
+    cache_hit_rate: 0.85           # Target cache hit rate
+
+# Step 3 Key Features - Hierarchical Memory
+# ==========================================
+HIERARCHICAL_MEMORY:
+  enabled: true                    # Enable hierarchical memory system
+  optimization_enabled: true       # Enable memory optimization
+  target_scale: "1M_entries"       # Target scale: "1M_entries", "10M_entries", "100M_entries"
+  
+  # Cache hierarchy settings
+  cache_hierarchy:
+    l1_cache_size: 2000            # L1 cache entries
+    l2_cache_size: 20000           # L2 cache entries  
+    l3_cache_size: 200000          # L3 cache entries
+    enable_disk_cache: true        # Enable disk-based caching
+  
+  # Prefetching settings
+  prefetching:
+    enabled: true
+    max_prefetch_items: 2000
+    confidence_threshold: 0.3
+  
+  # Performance targets
+  targets:
+    retrieval_latency_ms: 20.0     # Target memory retrieval latency
+    cache_hit_rate: 0.85           # Target cache hit rate
+    memory_efficiency: 0.9         # Target memory efficiency
+
+# Step 3 Key Features - Real-time Learning
+# =========================================
+REAL_TIME_LEARNING:
+  enabled: true                    # Enable real-time learning (Step 3 key feature)
+  online_learning: true            # Enable online learning system
+  adaptation_rate: 0.001           # Learning adaptation rate
+  learning_target_rate: 0.05       # Target learning progress rate
+  
+  # Learning system configuration
+  system_config:
+    stdp_enabled: true             # Enable STDP plasticity
+    experience_replay: true        # Enable experience replay
+    circuit_breakers: true         # Enable circuit breaker protection
+    quality_monitoring: true       # Enable quality monitoring
+  
+  # Performance monitoring
+  monitoring:
+    learning_progress_tracking: true
+    adaptation_metrics: true
+    performance_correlation: true
+
+# Step 3 Key Features - Symbolic Reasoning  
+# =========================================
+SYMBOLIC_REASONING:
+  enabled: true                    # Enable enhanced symbolic reasoning
+  depth: 3                         # Symbolic reasoning depth
+  rule_learning: true              # Enable rule learning
+  logical_inference: true          # Enable logical inference
+  
+  # Symbolic processing settings
+  processing:
+    max_reasoning_steps: 10        # Maximum reasoning steps
+    confidence_threshold: 0.7      # Minimum confidence for reasoning
+    parallel_processing: true      # Enable parallel symbolic processing
+
+# Optimized SNN Router Configuration
+# ==================================
+SNN_ROUTER:
+  # Spike rate optimization
+  spike_target_rate: 0.08          # Target 8% spike rate (Step 3 optimized)
+  spike_rate_window: 50            # Moving average window for spike tracking
+  
+  # Event-driven computation
+  event_driven: true               # Enable event-driven computation
+  sparse_threshold: 0.01           # Threshold for sparse operations
+  
+  # Hardware optimization
+  use_cuda_kernels: true           # Use custom CUDA kernels
+  mixed_precision: true            # Enable mixed precision training
+  compile_graphs: true             # Enable graph compilation
+  
+  # Performance targets
+  ttft_target_ms: 5.0              # Time to first token target
+  energy_efficiency_target: 1.0    # Energy efficiency target (J/tok)
+
+# Performance Optimization
+# =======================
+OPTIMIZATION:
+  # Parallel processing
+  parallel_processing: true        # Enable parallel expert processing
+  max_worker_threads: 4            # Maximum worker threads
+  
+  # Auto-optimization
+  auto_optimization: true          # Enable automatic performance optimization
+  monitoring_interval_seconds: 30  # Performance monitoring interval
+  
+  # Memory optimization
+  memory_pooling: true             # Enable memory pooling
+  gradient_checkpointing: false    # Disable gradient checkpointing (for speed)
+  
+  # Performance targets
+  targets:
+    throughput_qps: 100.0          # Target queries per second
+    memory_efficiency: 0.9         # Target memory efficiency
+    system_utilization: 0.8        # Target system utilization
+
+# Hardware Configuration  
+# =====================
+HARDWARE:
+  use_cuda: true                   # Use CUDA if available
+  device: "auto"                   # Device selection: "auto", "cuda", "cpu"
+  dtype: "float16"                 # Data type: "float16", "float32"
+  
+  # CUDA optimizations (if using CUDA)
+  cuda_settings:
+    benchmark: true                # Enable cuDNN benchmark
+    allow_tf32: true               # Allow TensorFloat-32
+    deterministic: false           # Allow non-deterministic ops
+  
+  # Memory management
+  memory_settings:
+    memory_efficient: true         # Use memory-efficient operations
+    cache_optimized: true          # Optimize cache usage
+
+# Expert System Configuration
+# ===========================
+EXPERTS:
+  # Language Expert
+  language:
+    enabled: true
+    max_tokens: 2048
+    temperature: 0.7
+    
+  # Vision Expert (Step 3 Full Capability)
+  vision:
+    enabled: true
+    backbone: "vit"                # Vision transformer backbone
+    spiking_output: true           # Enable spiking outputs
+    ltm_integration: true          # Integrate with LTM
+    
+  # Symbolic Expert (Step 3 Enhanced)  
+  symbolic:
+    enabled: true
+    reasoning_depth: 3
+    rule_learning: true
+    
+  # Affect Expert (Step 3 Real Modulation)
+  affect:
+    enabled: true
+    real_modulation: true          # Real vs logging-only modulation
+    multi_modal: true              # Multi-modal affect detection
+
+# Integration Testing
+# ===================
+TESTING:
+  # Integration tests
+  run_integration_tests: true      # Run comprehensive integration tests
+  test_performance: true          # Test performance targets
+  
+  # Performance validation
+  validate_latency: true           # Validate latency targets
+  validate_throughput: true        # Validate throughput targets
+  validate_accuracy: true          # Validate accuracy targets
+  
+  # Stress testing
+  stress_test_duration: 300        # Stress test duration (seconds)
+  load_test_requests: 1000         # Load test request count
+
+# Monitoring and Logging
+# ======================
+MONITORING:
+  enabled: true                    # Enable comprehensive monitoring
+  performance_tracking: true       # Track performance metrics
+  affect_tracking: true           # Track affect modulation
+  learning_tracking: true         # Track real-time learning
+  
+  # Logging configuration
+  logging:
+    level: "INFO"                  # Log level
+    enable_structured_logging: true
+    performance_logging: true
+    
+  # Metrics collection
+  metrics:
+    collection_interval: 30        # Metrics collection interval (seconds)
+    retention_period_hours: 24     # Metrics retention period
+    export_format: "json"          # Metrics export format
+
+# Deployment Configuration
+# =========================
+DEPLOYMENT:
+  # Scalability settings
+  max_concurrent_requests: 100     # Maximum concurrent requests
+  request_timeout_seconds: 30      # Request timeout
+  
+  # Health monitoring
+  health_checks: true              # Enable health checks
+  health_check_interval: 60        # Health check interval (seconds)
+  
+  # Graceful shutdown
+  shutdown_timeout: 30             # Shutdown timeout (seconds)
+
+# Step 3 Validation Targets
+# =========================
+VALIDATION_TARGETS:
+  # Latency targets (Step 3 critical)
+  latency:
+    avg_latency_ms: 150.0          # Average latency must be under 150ms
+    p95_latency_ms: 200.0          # 95th percentile latency
+    p99_latency_ms: 300.0          # 99th percentile latency
+  
+  # Quality targets
+  quality:
+    routing_accuracy: 0.85         # Routing decision accuracy
+    affect_detection_accuracy: 0.80 # Affect detection accuracy
+    vision_accuracy: 0.90          # Vision processing accuracy
+    symbolic_accuracy: 0.85        # Symbolic reasoning accuracy
+  
+  # Efficiency targets (Step 3 optimized)
+  efficiency:
+    spike_rate_range: [0.05, 0.15] # Acceptable spike rate range
+    cache_hit_rate: 0.85           # Cache hit rate target
+    memory_efficiency: 0.90        # Memory efficiency target
+    energy_efficiency: 1.0         # Energy efficiency target (J/tok max)
+  
+  # Step 3 specific validation
+  step3_features:
+    affect_routing_influence: 0.10  # Affect must influence routing decisions
+    hierarchical_memory_efficiency: 0.80 # Hierarchical memory must be efficient
+    real_time_learning_rate: 0.05   # Real-time learning must show progress
+
+# Expert Routing Configuration
+# ============================
+ROUTING:
+  # Expert selection
+  expert_selection:
+    top_k: 2                       # Select top 2 experts
+    confidence_threshold: 0.5      # Minimum confidence for expert selection
+    
+  # Load balancing
+  load_balancing:
+    enabled: true
+    balance_experts: true          # Balance expert utilization
+    max_expert_utilization: 0.8    # Maximum individual expert utilization
+    
+  # Affect integration
+  affect_integration:
+    enabled: true                  # Enable affect influence on routing
+    influence_sensitivity: 0.8     # How sensitive routing is to affect
+    adaptation_rate: 0.15          # How fast routing adapts to affect
+
+# Memory System Integration
+# =========================
+MEMORY_INTEGRATION:
+  # STM (Short-term Memory)
+  stm:
+    enabled: true
+    max_tokens: 4096
+    expert_aware: true             # Expert-aware memory storage
+    
+  # LTM (Long-term Memory)  
+  ltm:
+    enabled: true
+    backend: "faiss"               # FAISS backend
+    multimodal: true               # Multi-modal memory storage
+    cross_modal: true              # Cross-modal associations
+    
+  # Hierarchical organization (Step 3 key feature)
+  hierarchical:
+    enabled: true
+    levels: 3                      # Number of memory hierarchy levels
+    optimization: true             # Enable hierarchical optimization
+
+# Learning Integration
+# ====================
+LEARNING_INTEGRATION:
+  # STDP Learning
+  stdp:
+    enabled: true
+    learning_rate: 0.001
+    plasticity_rate: 0.05
+    
+  # Online Learning (Step 3 real-time)
+  online_learning:
+    enabled: true
+    adaptation_rate: 0.001
+    experience_replay: true
+    quality_monitoring: true
+    
+  # Meta-learning preparation
+  meta_learning:
+    enabled: false                 # Future Step 4 feature
+    adaptation_rate: 0.0001
+
+# Production Deployment Settings
+# ==============================
+PRODUCTION:
+  # Reliability settings
+  circuit_breakers: true           # Enable circuit breakers
+  graceful_degradation: true       # Enable graceful degradation
+  retry_logic: true                # Enable retry logic
+  
+  # Monitoring and alerting
+  alerting:
+    enabled: true
+    latency_alerts: true           # Alert on latency violations
+    error_rate_alerts: true        # Alert on high error rates
+    performance_alerts: true       # Alert on performance degradation
+  
+  # Resource management
+  resource_management:
+    max_memory_usage: "8GB"        # Maximum memory usage
+    max_cpu_usage: 80              # Maximum CPU usage percentage
+    gc_interval: 300               # Garbage collection interval (seconds)
