@@ -1,0 +1,83 @@
+# Comprehensive Benchmark Configuration
+# =====================================
+
+# Target performance metrics
+target_metrics:
+  # Tokens per second target for RTX 4090
+  tok_s: 30.0
+  
+  # Time to First Token (TTFT) target in milliseconds
+  ttft_ms: 5.0
+  
+  # Spike rate range (percentage)
+  spike_rate_range: [5.0, 15.0]
+  
+  # Retrieval latency target on 1M entries (milliseconds)
+  retrieval_ms: 20.0
+
+# Test parameters
+test_params:
+  iterations: 1000
+  warmup_iterations: 100
+  timeout_seconds: 300
+  batch_sizes: [1, 4, 8, 16, 32]
+
+# Model configuration
+model:
+  name: "microsoft/DialoGPT-medium"
+  test_text_lengths: [10, 50, 100, 500, 1000]
+
+# Retrieval test configuration
+retrieval:
+  index_size: 1000000  # 1M entries
+  queries: 1000
+  top_k: 10
+
+# Stress test parameters
+stress_test:
+  concurrency_levels: [1, 5, 10, 20, 50]
+  duration_seconds: 300
+
+# Monitoring configuration
+monitoring:
+  interval_ms: 100
+  memory_sample_interval_ms: 500
+  energy_sample_interval_ms: 1000
+
+# Energy monitoring
+energy:
+  enabled: true
+
+# Output configuration
+output:
+  directory: "benchmark_results"
+  save_detailed_logs: true
+  generate_html_report: true
+
+# Regression detection
+regression:
+  threshold_percent: 10.0
+  baseline_file: null  # Set to baseline file path
+
+# Hardware-specific configurations
+hardware_configs:
+  rtx_4090:
+    target_tok_s: 30.0
+    target_ttft_ms: 5.0
+    target_spike_rate_range: [5.0, 15.0]
+    target_retrieval_ms: 20.0
+    batch_sizes: [1, 4, 8, 16, 32, 64]
+    
+  rtx_3080:
+    target_tok_s: 25.0
+    target_ttft_ms: 8.0
+    target_spike_rate_range: [5.0, 15.0]
+    target_retrieval_ms: 25.0
+    batch_sizes: [1, 4, 8, 16, 32]
+    
+  cpu_only:
+    target_tok_s: 10.0
+    target_ttft_ms: 15.0
+    target_spike_rate_range: [5.0, 20.0]
+    target_retrieval_ms: 50.0
+    batch_sizes: [1, 2, 4, 8]
