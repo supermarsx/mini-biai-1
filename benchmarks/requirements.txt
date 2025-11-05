@@ -1,0 +1,58 @@
+# Comprehensive Benchmarking Suite Requirements
+# =============================================
+
+# Core dependencies
+numpy>=1.21.0
+torch>=1.9.0
+psutil>=5.8.0
+
+# Optional dependencies for enhanced features
+transformers>=4.20.0  # For token throughput benchmarking
+GPUtil>=1.4.0        # For GPU monitoring
+aiohttp>=3.8.0       # For web dashboard
+jinja2>=3.0.0        # For HTML reports
+
+# Data processing and analysis
+pandas>=1.3.0
+scipy>=1.7.0
+matplotlib>=3.5.0    # For plotting (optional)
+seaborn>=0.11.0      # For advanced plotting (optional)
+
+# Configuration and utilities
+PyYAML>=6.0          # For YAML configuration
+click>=8.0.0         # For CLI interfaces
+tqdm>=4.62.0         # For progress bars
+
+# Performance monitoring (platform-specific)
+# Linux:
+#  - Usually available in /sys/class/power_supply/
+# macOS:
+#  - powermetrics (built-in)
+# Windows:
+#  - WMI or other power monitoring tools
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+pytest-benchmark>=3.4.0
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.950
+
+# Documentation
+sphinx>=4.0.0
+sphinx-rtd-theme>=1.0.0
+
+# Additional monitoring tools (optional)
+# nvidia-ml-py3>=7.352.0  # Alternative to GPUtil
+# pynvml>=11.5.0          # NVIDIA Management Library
+# py3nvml>=0.2.7          # Python 3 wrapper for nvidia-ml
+
+# For energy monitoring on different platforms:
+# Linux: Usually built-in sysfs access
+# macOS: powermetrics (may require sudo for detailed power info)
+# Windows: WMI or proprietary tools
+
+# Note: Not all dependencies are required for all features.
+# The benchmarking suite will work with core dependencies and 
+# gracefully disable features that require optional dependencies.
