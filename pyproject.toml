@@ -1,0 +1,287 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mini-biai-1"
+version = "0.3.0"
+description = "Brain-Inspired Modular AI Framework"
+authors = [
+    {name = "Mini-BIAI-1 Team", email = "team@mini-biai-1.org"}
+]
+maintainers = [
+    {name = "Mini-BIAI-1 Team", email = "team@mini-biai-1.org"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+keywords = ["AI", "neural-networks", "neuromorphic", "spiking-neural-networks", "machine-learning", "brain-inspired"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "numpy>=1.21.0",
+    "faiss-cpu>=1.7.4",
+    "fastapi>=0.104.0",
+    "pydantic>=2.4.0",
+    "redis>=4.5.0",
+    "sentence-transformers>=2.2.2",
+    "structlog>=23.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.0.0",
+    "black>=22.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pylint>=2.17.0",
+    "pre-commit>=3.0.0",
+    "bandit>=1.7.0",
+    "safety>=2.3.0",
+]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocs-mermaid2-plugin>=1.1.0",
+]
+training = [
+    "transformers>=4.35.0",
+    "accelerate>=0.24.0",
+    "datasets>=2.14.0",
+    "boto3>=1.34.0",
+    "wandb>=0.15.0",
+]
+visualization = [
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "plotly>=5.17.0",
+    "jupyter>=1.0.0",
+]
+all = [
+    "mini-biai-1[dev]",
+    "mini-biai-1[docs]",
+    "mini-biai-1[training]",
+    "mini-biai-1[visualization]",
+]
+
+[project.urls]
+Homepage = "https://github.com/supermarsx/mini-biai-1"
+Documentation = "https://mini-biai-1.readthedocs.io"
+Repository = "https://github.com/supermarsx/mini-biai-1.git"
+Issues = "https://github.com/supermarsx/mini-biai-1/issues"
+Discussions = "https://github.com/supermarsx/mini-biai-1/discussions"
+Changelog = "https://github.com/supermarsx/mini-biai-1/blob/main/CHANGELOG.md"
+
+[project.scripts]
+mini-biai-1 = "mini_biai_1.cli:main"
+mini-biai-1-train = "mini_biai_1.training.cli:main"
+mini-biai-1-serve = "mini_biai_1.serving.cli:main"
+mini-biai-1-benchmark = "mini_biai_1.benchmarks.cli:main"
+
+[project.entry-points."console_scripts"]
+mini-biai-1 = "mini_biai_1.cli:main"
+mini-biai-1-train = "mini_biai_1.training.cli:main"
+mini-biai-1-serve = "mini_biai_1.serving.cli:main"
+mini-biai-1-benchmark = "mini_biai_1.benchmarks.cli:main"
+
+[project.extensions]
+mini_biai_1 = "mini_biai_1.extensions:ExtensionLoader"
+
+[tool.setuptools]
+packages = ["mini_biai_1"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.package-data]
+mini_biai_1 = [
+    "py.typed",
+    "configs/*.yaml",
+    "configs/*.yml",
+    "assets/*",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "torchvision.*",
+    "faiss.*",
+    "sentence_transformers.*",
+    "redis.*",
+    "fastapi.*",
+    "uvicorn.*",
+    "boto3.*",
+    "google.cloud.*",
+    "azure.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "--cov=mini_biai_1",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+    "--cov-fail-under=80",
+]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "performance: marks tests as performance tests",
+    "gpu: marks tests that require GPU",
+]
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src/mini_biai_1"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/_test_*.py",
+    "*/conftest.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.pylint.messages_control]
+disable = [
+    "invalid-name",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-instance-attributes",
+    "too-many-locals",
+    "too-many-branches",
+    "too-many-statements",
+    "line-too-long",
+]
+
+[tool.pylint.format]
+max-line-length = 88
+
+[tool.pylint.messages_control]
+confidence = [
+    "HIGH",
+    "CONTROL_FLOW",
+    "INFERENCE",
+    "INFERENCE_FAILURE",
+    "UNDEFINED",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", "test_*"]
+skips = ["B101", "B601"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+    "N",  # pep8-naming
+    "D",  # pydocstyle
+    "RUF", # ruff-specific rules
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "W191",  # indentation contains tabs
+]
+exclude = [
+    ".git",
+    ".tox",
+    ".venv",
+    "__pycache__",
+    "*.pyc",
+    "build",
+    "dist",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["D104", "F401"]
+"tests/*" = ["D", "S", "B018", "B017"]
+"scripts/*" = ["D", "S"]
