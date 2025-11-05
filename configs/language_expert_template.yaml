@@ -9,333 +9,229 @@ language_expert:
   expert_info:
     name: "Language Expert"
     domain: "text_processing"
-    role: "primary"  # primary, supportive, modulatory
     primary_functions:
-      - "text_generation"
-      - "natural_language_understanding"
+      - "text_understanding"
+      - "text_generation" 
+      - "natural_language_reasoning"
       - "conversational_context"
     secondary_functions:
-      - "text_summarization"
+      - "language_translation"
+      - "summarization"
       - "question_answering"
-      - "translation"
-      - "text_classification"
       
   # Architecture configuration
   architecture:
-    type: "mamba"  # mamba, linear_attention, transformer
+    type: "mamba"  # mamba, transformer, linear_attention
     d_model: 512
     n_layers: 4
+    dropout: 0.1
     
-    # Mamba-specific settings
+    # Mamba-specific parameters
     mamba_config:
-      d_state: 64  # SSM state dimension
-      d_conv: 4    # Convolution kernel size
-      expand: 2    # Expansion factor
+      d_state: 64
+      d_conv: 4
+      expand: 2
       dt_rank: "auto"
       
-    # Linear attention alternative
-    linear_attention_config:
-      n_heads: 8
-      head_dim: 64
-      dropout: 0.1
-      
-    # Transformer fallback configuration
+    # Transformer fallback
     transformer_config:
       n_heads: 8
       intermediate_size: 2048
-      dropout: 0.1
       layer_norm_epsilon: 1e-6
       
-  # Input processing for language tasks
+  # Input processing
   input_processing:
-    # Tokenization
-    tokenizer:
-      type: "sentencepiece"  # sentencepiece, bpe, wordpiece
-      vocab_size: 32000
-      max_length: 2048
-      
-    # Special tokens
-    special_tokens:
-      pad_token: "<pad>"
-      unk_token: "<unk>"
-      cls_token: "<cls>"
-      sep_token: "<sep>"
-      mask_token: "<mask>"
-      
+    max_input_length: 2048
+    tokenization:
+      tokenizer: "gpt2_tokenizer"
+      vocab_size: 50257
+      special_tokens:
+        bos_token: ""
+        eos_token: ""
+        pad_token: "<|pad|>"
+        
     # Text preprocessing
-    preprocessing:
-      normalize_text: true
-      remove_punctuation: false
-      lowercase: false
-      
+    text_normalization: true
+    lowercase: false  # Preserve case for language tasks
+    remove_punctuation: false
+    
   # Language-specific capabilities
   capabilities:
     # Text generation
     text_generation:
       enabled: true
-      max_length: 512
+      max_new_tokens: 512
       temperature: 0.7
-      top_k: 50
       top_p: 0.9
       repetition_penalty: 1.1
       do_sample: true
       
-      # Generation modes
-      modes:
-        creative:
-          temperature: 0.9
-          top_p: 0.95
-        factual:
-          temperature: 0.3
-          top_p: 0.8
-        balanced:
-          temperature: 0.7
-          top_p: 0.9
-          
     # Natural language understanding
     nlu:
       enabled: true
       tasks:
-        sentiment_analysis: true
-        emotion_detection: true
-        topic_classification: true
-        intent_classification: true
-        named_entity_recognition: true
+        - "classification"
+        - "sentiment_analysis" 
+        - "entity_recognition"
+        - "question_answering"
+        - "text_summarization"
         
     # Conversational context
     conversational_context:
       enabled: true
       context_window: 1024
-      conversation_history: true
-      dialogue_turn_limit: 10
-      context_compression: true
+      conversation_memory: true
+      dialogue_state_tracking: false  # Will be enabled in Step 3
       
-    # Multi-task learning
-    multi_task:
+    # Multi-turn reasoning
+    reasoning:
       enabled: true
-      tasks:
-        - "language_modeling"
-        - "masked_lm"
-        - "next_sentence_prediction"
-        - "text_classification"
-        
+      reasoning_depth: 3
+      chain_of_thought: false  # Will be enabled in Step 3
+      step_by_step: false
+      
   # Performance parameters
   performance:
     # Latency requirements
     max_inference_time_ms: 50
-    target_throughput_qps: 20  # ~50ms per query
+    target_throughput_qps: 20
     
     # Accuracy requirements
-    min_accuracy: 0.80
+    min_accuracy: 0.8
     evaluation_metrics:
       - "perplexity"
-      - "bleu"
-      - "rouge"
+      - "bleu_score"
+      - "rouge_score"
       - "accuracy"
-      - "f1_score"
       
   # Memory integration
   memory_integration:
-    # Text context retrieval
-    text_retrieval:
+    # Context retrieval
+    context_retrieval:
       enabled: true
-      similarity_threshold: 0.8
-      retrieval_backend: "faiss"
+      top_k_chunks: 5
+      chunk_size: 512
+      overlap: 64
       
-    # Expert-specific language memory
-    language_memory:
-      context_buffer_size: 2048
-      embedding_cache_size: 5000
+    # Expert-specific STM
+    stm:
+      expert_specific_buffer: true
+      buffer_size: 1024
       language_context_weight: 1.0
       
   # Affect modulation integration
   affect_integration:
-    # Affect-sensitive text generation
-    affect_aware_generation:
-      enabled: true
-      emotion_influence: 0.3  # How much emotion affects generation
-      tone_adaptation: true
-      
+    # Language affects by affect state
+    valence_sensitivity: 0.3  # How much valence affects language choice
+    arousal_modulation: 0.2   # How arousal affects complexity
+    emotion_consistency: true # Maintain emotional tone
+    
     # Sentiment-aware processing
-    sentiment_aware:
+    sentiment_analysis:
       enabled: true
-      sentiment_shaping: true
-      empathy_modeling: false  # Will be enabled in Step 3
+      emotion_categories: 8
+      confidence_threshold: 0.7
       
   # Training configuration for language expert
   training:
     # Task-specific training
     tasks:
       - "language_modeling"
-      - "masked_lm"
-      - "next_sentence_prediction"
-      - "text_classification"
-      - "conversation_modeling"
+      - "text_classification" 
+      - "text_summarization"
+      - "question_answering"
       
     # Loss weights
     loss_weights:
       language_modeling: 0.4
-      masked_lm: 0.2
-      next_sentence: 0.1
-      text_classification: 0.2
-      conversation_modeling: 0.1
+      nlu_tasks: 0.3
+      conversational: 0.2
+      affect_prediction: 0.1
       
     # Optimization
     learning_rate: 5e-5
     weight_decay: 0.01
-    adam_beta1: 0.9
-    adam_beta2: 0.999
-    adam_epsilon: 1e-8
-    
-    # Scheduler
-    scheduler:
-      type: "cosine"
-      warmup_steps: 1000
-      max_steps: 100000
-      
-    # Regularization
-    regularization:
-      dropout: 0.1
-      label_smoothing: 0.1
-      max_grad_norm: 1.0
+    adam_optimizer:
+      beta1: 0.9
+      beta2: 0.999
+      epsilon: 1e-8
       
   # Evaluation configuration
   evaluation:
     datasets:
-      # Language modeling
       - "wikitext-103"
-      - "bookcorpus"
-      
-      # Text classification
       - "glue"
-      - "superglue"
-      
-      # Conversation
-      - "persona_chat"
-      - "daily_dialog"
+      - "squad"
+      - "convai"
       
     metrics:
-      language_modeling:
-        perplexity: true
-        ppl_lower_better: true
+      perplexity:
+        enabled: true
+        stride: 512
         
-      text_generation:
-        bleu: true
-        rouge: true
-        meteor: true
-        cider: true
+      generation_quality:
+        enabled: true
+        metrics: ["bleu", "rouge", "meteor"]
         
-      classification:
-        accuracy: true
-        f1_score: true
-        precision: true
-        recall: true
+      understanding_tasks:
+        enabled: true
+        accuracy_threshold: 0.8
         
   # Deployment configuration
   deployment:
     # Serving parameters
     serving:
-      batch_size: 32  # Larger batches for text
-      max_sequence_length: 2048
-      timeout_ms: 5000  # Generous timeout for text
+      batch_size: 32
+      max_sequence_length: 512
+      timeout_ms: 5000
       
     # Caching
     caching:
       enabled: true
-      cache_generations: true
       cache_size: 1000
-      cache_embeddings: true
-      embedding_cache_size: 2000
+      cache_strategy: "lru"
       
   # Integration with routing system
   routing_integration:
     # Routing preferences
     preferred_tasks:
       - "text_generation"
-      - "natural_language_understanding"
       - "conversational_tasks"
-      - "text_analysis"
-      
-    # Text complexity preferences
-    text_complexity_preferences:
-      simple_text: 0.9
-      complex_text: 0.8
-      technical_text: 0.9
-      creative_text: 0.8
+      - "language_understanding"
       
     # Expertise levels
     expertise_levels:
-      text_generation: 0.95
-      language_understanding: 0.90
-      conversation: 0.85
-      text_classification: 0.85
-      summarization: 0.80
-      translation: 0.75  # Basic level
-      
-  # Architecture-specific settings
-  mamba_settings:
-    # Mamba-specific optimizations
-    state_space_config:
-      d_state: 64
-      expand: 2
-      dt_rank: "auto"
-      
-    # Convolution settings
-    conv_settings:
-      kernel_size: 4
-      groups: 1
-      bias: false
-      
-    # RNN-like settings for Mamba
-    rnn_mode: false
-    
-  # Hardware considerations
-  hardware:
-    # GPU memory requirements
-    gpu_memory_required_gb: 1.5
-    
-    # Mixed precision
-    mixed_precision: true
-    
-    # Batch size recommendations
-    recommended_batch_sizes:
-      training: 32
-      inference: 64
+      creative_writing: 0.9
+      technical_writing: 0.8
+      conversational: 0.9
+      reasoning: 0.7
+      factual: 0.8
       
   # Configuration overrides from base
   base_overrides:
+    # Override specific settings from step2_base.yaml
     routing:
       experts:
         language:
           activation_threshold: 0.5
           capacity_weight: 1.0
           
-    performance_tuning:
-      latency:
-        budget_allocation:
-          language_expert: 50  # ms
-          
+    language_backbone:
+      # Ensure language backbone is used for this expert
+      type: "mamba"
+      
   # Expert metadata
   metadata:
     version: "0.2.0"
     author: "mini-biai-1 Team"
     description: "Language expert for text processing and generation"
     capabilities_summary: |
-      This expert specializes in language processing including:
-      - Text generation with Mamba/Transformer architectures
-      - Natural language understanding and classification
-      - Conversational context management
-      - Multi-task learning for language tasks
-      - Affect-aware text generation
-      
-    limitations: |
-      Current limitations in Step 2:
-      - Limited to text-only processing
-      - No visual-linguistic tasks
-      - Basic conversation management only
-      - No advanced reasoning capabilities
-      - No code generation or understanding
-      These will be enhanced in Step 3.
+      This expert specializes in all aspects of language processing including:
+      - Text generation and understanding
+      - Conversational AI and dialogue systems  
+      - Natural language reasoning and analysis
+      - Multi-modal text processing
+      - Affect-aware language generation
       
   # Validation rules
   validation:
@@ -346,47 +242,6 @@ language_expert:
       - "performance.max_inference_time_ms"
       
     value_constraints:
-      max_inference_time_ms: [10, 200]
-      min_accuracy: [0.7, 1.0]
-      temperature: [0.1, 2.0]
-      
-  # Quality assurance
-  quality_assurance:
-    # Performance benchmarks
-    benchmarks:
-      perplexity_wikitext: 20.0   # Maximum perplexity on wikitext
-      bleu_score: 20.0             # Minimum BLEU score
-      
-    # Language quality checks
-    language_checks:
-      grammatical_correctness: true
-      coherence_check: true
-      factual_accuracy: false      # Will be enabled in Step 3
-      
-  # Debugging and monitoring
-  debugging:
-    # Text generation monitoring
-    generation_monitoring:
-      track_generation_quality: true
-      log_generation_samples: false  # Privacy concern
-      
-    # Performance monitoring
-    performance_monitoring:
-      track_latency: true
-      track_throughput: true
-      track_accuracy: true
-      
-  # Future enhancements roadmap
-  roadmap:
-    step_3_enhancements:
-      - "Visual-linguistic tasks"
-      - "Advanced reasoning capabilities"
-      - "Code understanding and generation"
-      - "Multimodal conversation"
-      
-    step_4_enhancements:
-      - "Long-form text generation"
-      - "Scientific paper writing"
-      - "Creative writing assistance"
-      - "Real-time language translation"
-      - "Personalized language models"
+      max_inference_time_ms: [10, 1000]
+      min_accuracy: [0.0, 1.0]
+      expertise_levels: [0.0, 1.0]
