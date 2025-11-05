@@ -34,45 +34,12 @@ Key Features:
     - Hardware-aware optimizations
     - Thread-safe concurrent access patterns
 
-Usage Examples:
-    Basic Request Processing:
-    >>> from src.interfaces import Request, Reply, RouteDecision
-    >>> 
-    >>> # Create a request
-    >>> request = Request(
-    ...     query="What is neural network?",
-    ...     context={"domain": "education"}
-    ... )
-    >>> 
-    >>> # Process through pipeline
-    >>> route = RouteDecision(expert="language", confidence=0.9)
-    >>> response = Reply(result="Neural networks are computational models...", confidence=0.95)
-    
-    Memory Integration:
-    >>> from src.interfaces import STMState, Retrieval, EmbeddingVector
-    >>> 
-    >>> # Update short-term memory
-    >>> stm_state = STMState(current_items=100, max_items=1000)
-    >>> 
-    >>> # Retrieve from long-term memory
-    >>> retrieval = Retrieval(
-    ...     embeddings=[EmbeddingVector(values=[...])],
-    ...     similarities=[0.95],
-    ...     metadata=[{"source": "corpus"}]
-    ... )
-
 Architecture Benefits:
     - Decouples implementation from interface contracts
     - Enables plugin-based architecture
     - Facilitates testing with mock implementations
     - Supports distributed system deployment
     - Enables performance monitoring and optimization
-
-Dependencies:
-    - torch: Tensor operations and neural network components
-    - numpy: Numerical computations and array operations
-    - typing: Type hints for modern Python versions
-    - dataclasses: Automatic method generation for data structures
 
 Version: 1.0.0
 Author: mini-biai-1 Team
