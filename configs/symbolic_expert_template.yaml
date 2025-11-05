@@ -1,0 +1,403 @@
+# Symbolic Expert Configuration Template  
+# Specialized configuration for symbolic reasoning and logical processing
+
+symbolic_expert:
+  # Basic configuration inherited from step2_base.yaml
+  inherit_from: "step2_base"
+  
+  # Expert identity and role
+  expert_info:
+    name: "Symbolic Expert"
+    domain: "symbolic_processing"
+    primary_functions:
+      - "logical_reasoning"
+      - "mathematical_computation"
+      - "structured_data_processing"
+      - "planning_and_problem_solving"
+    secondary_functions:
+      - "code_analysis"
+      - "data_verification"
+      - "constraint_solving"
+      - "formal_logic"
+      
+  # Architecture configuration
+  architecture:
+    type: "transformer_symbolic"  # transformer_symbolic, logic_net, grover
+    d_model: 512
+    n_layers: 3  # Fewer layers for faster reasoning
+    
+    # Transformer with symbolic bias
+    transformer_config:
+      n_heads: 8
+      intermediate_size: 1024  # Smaller than language expert
+      layer_norm_epsilon: 1e-6
+      symbolic_bias: true  # Custom bias for logical patterns
+      
+    # Symbolic reasoning modules
+    symbolic_modules:
+      propositional_logic: true
+      first_order_logic: false  # Will be enabled in Step 3
+      temporal_logic: false     # Will be enabled in Step 3
+      constraint_satisfaction: true
+      
+    # Mathematical computation engine
+    math_engine:
+      precision: "float32"  # float32, float64, decimal
+      operations: ["arithmetic", "algebra", "geometry", "calculus_basic"]
+      symbolic_math: false  # Will be enabled in Step 3
+      
+  # Input processing for symbolic data
+  input_processing:
+    # Text-to-logic conversion
+    text_to_logic:
+      enabled: true
+      parse_logic_expressions: true
+      extract_mathematical_expressions: true
+      
+    # Structured data processing
+    structured_data:
+      formats: ["json", "csv", "xml", "yaml"]
+      validation_schema: true
+      type_checking: true
+      
+    # Code analysis
+    code_processing:
+      languages: ["python", "pseudo_code"]  # Extended in Step 3
+      syntax_analysis: true
+      semantic_analysis: false  # Will be enabled in Step 3
+      
+  # Symbolic-specific capabilities
+  capabilities:
+    # Logical reasoning
+    logical_reasoning:
+      enabled: true
+      reasoning_types:
+        - "deductive_reasoning"
+        - "inductive_reasoning" 
+        - "abductive_reasoning"
+        - "analogical_reasoning"
+      reasoning_depth: 5  # Steps of reasoning
+      logical_connectives: ["and", "or", "not", "implies", "iff"]
+      
+    # Mathematical computation
+    mathematical_computation:
+      enabled: true
+      arithmetic: true
+      algebra: true
+      geometry: true
+      basic_calculus: false  # Will be enabled in Step 3
+      statistics: true
+      
+      # Precision settings
+      floating_point_precision: 1e-6
+      integer_arithmetic: true
+      symbolic_computation: false
+      
+    # Structured data processing
+    structured_data:
+      enabled: true
+      json_processing: true
+      xml_processing: true
+      csv_processing: true
+      yaml_processing: true
+      
+      # Data validation
+      schema_validation: true
+      type_checking: true
+      constraint_checking: true
+      
+    # Planning and problem solving
+    planning:
+      enabled: true
+      planning_horizon: 10  # Steps ahead
+      action_library: ["move", "transform", "combine", "analyze"]
+      goal_reasoning: true
+      
+      # Search algorithms
+      search_algorithms:
+        - "breadth_first_search"
+        - "depth_first_search" 
+        - "a_star"  # For weighted problems
+        - "best_first_search"
+        
+    # Constraint solving
+    constraint_solving:
+      enabled: true
+      constraint_types: ["equality", "inequality", "logical", "temporal"]
+      satisfaction: "exact"  # exact, approximate
+      backtracking: true
+      
+  # Performance parameters
+  performance:
+    # Latency requirements (most time-critical expert)
+    max_inference_time_ms: 30
+    target_throughput_qps: 33  # ~30ms per query
+    
+    # Accuracy requirements (precision critical)
+    min_accuracy: 0.85
+    arithmetic_precision: 1e-6
+    logical_consistency: 0.95
+    
+    # Evaluation metrics
+    evaluation_metrics:
+      - "logical_accuracy"
+      - "arithmetic_correctness"
+      - "reasoning_depth_score"
+      - "constraint_satisfaction_rate"
+      
+  # Memory integration
+  memory_integration:
+    # Symbolic context retrieval
+    symbolic_retrieval:
+      enabled: true
+      knowledge_base: "structured_facts"
+      rule_retrieval: true
+      pattern_matching: true
+      
+    # Expert-specific symbolic memory
+    symbolic_memory:
+      rule_buffer_size: 1024
+      fact_buffer_size: 2048
+      symbolic_context_weight: 1.0
+      
+  # Affect modulation integration
+  affect_integration:
+    # Limited affect influence on symbolic reasoning
+    affect_sensitivity: 0.1  # Much lower than other experts
+    
+    # Arousal effect on reasoning complexity
+    arousal_modulation:
+      complexity_boost_by_arousal: false  # Symbolic reasoning should be consistent
+      speed_vs_accuracy_by_arousal: true  # Trade-off for high arousal
+      
+    # Valence effect on problem-solving approach
+    valence_effect:
+      optimistic_reasoning: 0.1  # Slight optimism bias
+      pessimistic_reasoning: 0.1 # Slight caution bias
+      
+  # Training configuration for symbolic expert
+  training:
+    # Task-specific training
+    tasks:
+      - "logical_reasoning"
+      - "mathematical_problems"
+      - "constraint_satisfaction"
+      - "structured_data_analysis"
+      
+    # Synthetic problem generation
+    synthetic_problems:
+      enabled: true
+      problem_types:
+        logic_puzzles: true
+        arithmetic_problems: true
+        algebraic_equations: true
+        geometric_problems: true
+        constraint_problems: true
+        
+    # Loss weights
+    loss_weights:
+      logical_reasoning: 0.4
+      mathematical_computation: 0.3
+      constraint_solving: 0.2
+      structured_data: 0.1
+      
+    # Optimization (more conservative for symbolic reasoning)
+    learning_rate: 1e-5  # Lower learning rate
+    weight_decay: 0.01
+    adam_optimizer:
+      beta1: 0.9
+      beta2: 0.999
+      epsilon: 1e-8
+      
+    # Regularization for symbolic consistency
+    regularization:
+      logical_consistency_loss: 0.1
+      symbolic_structure_loss: 0.1
+      
+  # Evaluation configuration
+  evaluation:
+    datasets:
+      # Logical reasoning
+      - "conceptnet"  # For commonsense reasoning
+      - "logical_inference"  # Custom dataset
+      
+      # Mathematical problems
+      - "math_word_problems"
+      - "algebraic_reasoning"
+      - "geometric_reasoning"
+      
+      # Constraint satisfaction
+      - "sudoku_problems"  # Constraint satisfaction examples
+      - "graph_coloring"   # Graph-based constraints
+      
+    metrics:
+      logical_reasoning:
+        accuracy: true
+        consistency: true
+        
+      mathematical_computation:
+        precision: true
+        correctness: true
+        
+      constraint_satisfaction:
+        satisfaction_rate: true
+        solution_quality: true
+        
+  # Deployment configuration
+  deployment:
+    # Serving parameters
+    serving:
+      batch_size: 64  # Larger batches for simple computations
+      max_reasoning_steps: 10
+      timeout_ms: 1000  # Conservative timeout
+      
+    # Caching
+    caching:
+      enabled: true
+      cache_computed_results: true
+      cache_size: 2000  # Larger cache for symbolic results
+      cache_strategy: "lru"
+      
+  # Integration with routing system
+  routing_integration:
+    # Routing preferences
+    preferred_tasks:
+      - "mathematical_problems"
+      - "logical_reasoning"
+      - "structured_data_analysis"
+      - "constraint_solving"
+      - "planning_tasks"
+      
+    # Problem complexity preferences
+    complexity_preferences:
+      simple_problems: 0.8
+      medium_problems: 0.9
+      complex_problems: 0.7  # May require multiple experts
+      
+    # Expertise levels
+    expertise_levels:
+      arithmetic: 0.95
+      algebra: 0.90
+      geometry: 0.85
+      logical_reasoning: 0.90
+      constraint_solving: 0.85
+      planning: 0.75
+      code_analysis: 0.60  # Basic level in Step 2
+      
+  # Symbolic reasoning engine
+  reasoning_engine:
+    # Inference rules
+    inference_rules:
+      - "modus_ponens"
+      - "modus_tollens"
+      - "hypothetical_syllogism"
+      - "disjunctive_syllogism"
+      
+    # Search strategies
+    search_strategies:
+      forward_chaining: true
+      backward_chaining: true
+      bidirectional_search: false  # Will be enabled in Step 3
+      
+    # Proof systems
+    proof_systems:
+      natural_deduction: true
+      resolution: false  # Will be enabled in Step 3
+      sequent_calculus: false  # Will be enabled in Step 3
+      
+  # Hardware considerations
+  hardware:
+    # Lower GPU memory requirements
+    gpu_memory_required_gb: 1.0
+    
+    # CPU optimization for symbolic processing
+    cpu_optimization: true
+    parallel_processing: true
+    
+    # Mixed precision (lower precision acceptable)
+    mixed_precision: false  # Maintain full precision for symbolic reasoning
+    
+    # Batch size recommendations
+    recommended_batch_sizes:
+      training: 64
+      inference: 128
+      
+  # Configuration overrides from base
+  base_overrides:
+    routing:
+      experts:
+        symbolic:
+          activation_threshold: 0.5
+          capacity_weight: 1.0
+          
+    performance_tuning:
+      latency:
+        budget_allocation:
+          symbolic_expert: 30  # ms - tight budget
+          
+    training:
+      learning_rate: 1e-5  # More conservative
+      
+  # Expert metadata
+  metadata:
+    version: "0.2.0"
+    author: "mini-biai-1 Team"
+    description: "Symbolic expert for logical reasoning and mathematical computation"
+    capabilities_summary: |
+      This expert specializes in symbolic and logical processing including:
+      - Deductive, inductive, and abductive reasoning
+      - Mathematical computation and algebraic reasoning
+      - Structured data processing and validation
+      - Planning, problem-solving, and constraint satisfaction
+      - Formal logic and symbolic manipulation
+      
+    limitations: |
+      Current limitations in Step 2:
+      - No symbolic mathematics (only numerical)
+      - Limited temporal reasoning
+      - Basic constraint satisfaction only
+      - No automated theorem proving
+      These will be enhanced in Step 3.
+      
+  # Validation rules
+  validation:
+    required_fields:
+      - "expert_info.name"
+      - "architecture.type"
+      - "capabilities.logical_reasoning.enabled"
+      - "performance.max_inference_time_ms"
+      
+    value_constraints:
+      max_inference_time_ms: [5, 200]  # Very tight constraints
+      min_accuracy: [0.8, 1.0]         # High accuracy requirement
+      reasoning_depth: [1, 10]
+      
+  # Quality assurance
+  quality_assurance:
+    # Performance benchmarks
+    benchmarks:
+      arithmetic_accuracy: 0.99     # Very high precision required
+      logical_consistency: 0.95      # Logical reasoning consistency
+      reasoning_speed: 30           # Maximum 30ms
+      
+    # Validation tests
+    validation_tests:
+      logical_puzzles: true
+      mathematical_problems: true
+      constraint_problems: true
+      structured_data_tasks: true
+      
+  # Debugging and monitoring
+  debugging:
+    # Reasoning trace logging
+    reasoning_trace: false  # Enable for debugging logical errors
+    
+    # Symbolic computation verification
+    symbolic_verification: true
+    constraint_verification: true
+    
+    # Performance monitoring
+    performance_monitoring:
+      reasoning_step_count: true
+      constraint_satisfaction_time: true
+      logical_consistency_check: true

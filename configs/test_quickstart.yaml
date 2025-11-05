@@ -1,0 +1,151 @@
+# Quick-start configuration for mini-biai-1 Step 2
+# Optimized for development and testing environments
+
+general:
+  project_name: "mini-biai-1-quickstart"
+  version: "0.2.0"
+  debug: true
+  random_seed: 42
+  device: "auto"
+
+routing:
+  n_experts: 2  # Simplified to 2 experts for faster testing
+  top_k: 1      # Single expert for speed
+  temperature: 0.2
+  spike_threshold: 0.8
+  target_spike_rate: 0.15
+  
+  experts:
+    language:
+      name: "Language Expert"
+      activation_threshold: 0.4
+    
+    symbolic:
+      name: "Symbolic Expert"
+      activation_threshold: 0.4
+
+# Simplified affect (logging only)
+affect:
+  enabled: true
+  log_only: true
+  state_representation:
+    dimensions: ["valence", "arousal", "dominance"]
+    emotion_categories: 6
+
+# Faster language backbone
+language_backbone:
+  type: "linear_attention"  # Faster than Mamba
+  d_model: 256             # Reduced size
+  n_layers: 2              # Fewer layers
+  max_position_embeddings: 1024
+  
+  linear_attention:
+    n_heads: 4
+    head_dim: 64
+    dropout: 0.1
+
+# Simplified auto-learning
+auto_learning:
+  enabled: true
+  stdp:
+    enabled: true
+    learning_rate: 0.002  # Faster learning
+  online_learning:
+    enabled: true
+    update_frequency: "interaction"
+
+# Simplified memory
+memory:
+  stm:
+    capacity: 2048  # Reduced capacity
+  working_memory:
+    capacity: 500
+  ltm:
+    backend: "simple"  # Use simple retrieval
+    text_vector_dim: 256
+
+# Quick performance tuning
+performance_tuning:
+  latency:
+    target_latency_ms: 300  # More relaxed for development
+    budget_allocation:
+      routing: 20
+      retrieval: 30
+      expert_processing: 200
+      affect_detection: 10
+      generation: 40
+  
+  memory:
+    target_memory_gb: 4
+    mixed_precision: true
+
+# Simplified training for quick start
+training:
+  max_epochs: 3           # Quick training
+  eval_steps: 500
+  save_steps: 500
+  logging_steps: 100
+  
+  optimization:
+    learning_rate: 1e-4
+    optimizer: "adamw"
+    
+# Quick data settings
+data:
+  batch_size: 16          # Smaller batches for speed
+  sequence_length: 256
+  
+  # Simplified paths
+  train_data_path: "data/quickstart/train/"
+  val_data_path: "data/quickstart/val/"
+  model_save_path: "models/quickstart/"
+
+# Simplified inference
+inference:
+  temperature: 0.8        # More creative for testing
+  max_length: 256
+  do_sample: true
+  
+  caching:
+    enabled: true
+    cache_size: 500
+
+# Simplified evaluation
+evaluation:
+  metrics:
+    - "perplexity"
+    - "accuracy"
+    - "expert_utilization"
+
+# Hardware settings for development
+hardware:
+  gpu_memory_fraction: 0.6
+  mixed_precision: true
+  
+  memory_optimization:
+    gradient_checkpointing: false  # Speed over memory
+    cpu_offloading: false
+
+# Simplified logging
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  tensorboard:
+    enabled: true
+    log_dir: "logs/quickstart/"
+    
+  multi_expert_logging:
+    enabled: true
+    log_dir: "logs/quickstart/experts/"
+    
+  affect_logging:
+    enabled: true
+    log_dir: "logs/quickstart/affect/"
+
+# Simplified experimental features
+experimental:
+  neuromorphic_computing: true
+  synaptic_plasticity: true
+  meta_learning: false
+  few_shot_learning: false

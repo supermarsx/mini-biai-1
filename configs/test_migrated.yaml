@@ -1,0 +1,223 @@
+# Test configuration for mini-biai-1 migration testing
+# Used for testing Step 1 to Step 2 migration
+
+general:
+  project_name: "mini-biai-1-migration-test"
+  version: "0.2.0-test"
+  debug: true
+  random_seed: 42
+  device: "cpu"  # CPU-only for testing
+
+# Basic routing setup
+routing:
+  router_type: "multi_expert"
+  n_experts: 1  # Single expert for migration testing
+  top_k: 1
+  temperature: 0.1
+  spike_threshold: 0.7
+  target_spike_rate: 0.10
+  
+  experts:
+    language:
+      name: "Language Expert (Test)"
+      description: "Test language expert for migration"
+      domain: "text_processing"
+      specializations: ["text_generation", "basic_nlu"]
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      performance_weight: 1.0
+
+# Test affect settings
+affect:
+  enabled: true
+  log_only: true  # Log-only for testing
+  
+  state_representation:
+    dimensions: ["valence", "arousal", "dominance"]
+    emotion_categories: 6
+    
+  detection:
+    text_affect:
+      enabled: true
+      model: "test_bert"
+      hidden_size: 128  # Smaller for testing
+      dropout: 0.1
+
+# Test language backbone
+language_backbone:
+  type: "transformer"  # Use simple transformer for testing
+  name: "TestTransformer"
+  
+  d_model: 128  # Very small for testing
+  n_layers: 1   # Single layer
+  max_position_embeddings: 256
+  
+  transformer:
+    n_heads: 4
+    intermediate_size: 256
+    dropout: 0.1
+    layer_norm_epsilon: 1e-6
+
+# Minimal auto-learning for testing
+auto_learning:
+  enabled: true
+  stdp:
+    enabled: true
+    learning_rate: 0.001
+    tau_pre: 10.0  # Shorter traces for testing
+    tau_post: 10.0
+    a_plus: 0.05
+    a_minus: 0.05
+  
+  online_learning:
+    enabled: true
+    update_frequency: "batch"
+
+# Test memory configuration
+memory:
+  hierarchical: true
+  
+  stm:
+    capacity: 512   # Small capacity for testing
+    decay_rate: 0.01
+    
+    lstm:
+      hidden_size: 128
+      layers: 1
+      dropout: 0.1
+      
+  working_memory:
+    capacity: 256
+    attention_heads: 4
+    head_dim: 32
+    
+  ltm:
+    backend: "simple"  # Simple backend for testing
+    metric_type: "cosine"
+    
+    text_vector_dim: 128
+    
+    # Simple index for testing
+    text_index:
+      type: "Flat"  # Exact search for testing
+      metric_type: "cosine"
+
+# Test performance settings
+performance_tuning:
+  latency:
+    target_latency_ms: 1000  # Very relaxed for testing
+    budget_allocation:
+      routing: 50
+      retrieval: 100
+      expert_processing: 700
+      affect_detection: 50
+      generation: 100
+      
+    optimizations:
+      batching: true
+      cache_enabled: true
+      cache_size: 100  # Small cache for testing
+      
+  memory:
+    target_memory_gb: 2  # Low memory target for testing
+    gc_frequency: "batch"
+    mixed_precision: false  # No mixed precision for testing
+
+# Minimal training settings
+training:
+  max_epochs: 1  # Single epoch for testing
+  eval_steps: 10
+  save_steps: 10
+  logging_steps: 5
+  gradient_accumulation_steps: 1
+  
+  optimization:
+    optimizer: "adamw"
+    learning_rate: 1e-4
+    weight_decay: 0.01
+    
+  early_stopping:
+    enabled: false  # Disable for testing
+
+# Test data settings
+data:
+  batch_size: 4   # Very small batches for testing
+  sequence_length: 128
+  
+  # Test data paths
+  train_data_path: "data/test/train/"
+  val_data_path: "data/test/val/"
+  test_data_path: "data/test/test/"
+  model_save_path: "models/test/"
+  tensorboard_log_path: "logs/test/tensorboard/"
+
+# Test inference settings
+inference:
+  temperature: 0.7
+  max_length: 128  # Short generation for testing
+  do_sample: true
+  
+  caching:
+    enabled: true
+    cache_size: 50  # Small cache for testing
+
+# Minimal evaluation
+evaluation:
+  metrics:
+    - "perplexity"
+    - "accuracy"
+
+# Test hardware settings
+hardware:
+  gpu_memory_fraction: 0.0  # CPU-only testing
+  mixed_precision: false
+  
+  distributed:
+    enabled: false
+    
+  memory_optimization:
+    gradient_checkpointing: false
+    cpu_offloading: false
+
+# Test logging
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  tensorboard:
+    enabled: true
+    log_dir: "logs/test/tensorboard/"
+    
+  multi_expert_logging:
+    enabled: true
+    log_dir: "logs/test/experts/"
+    log_routing_decisions: true
+    
+  affect_logging:
+    enabled: true
+    log_dir: "logs/test/affect/"
+
+# Test checkpointing
+checkpointing:
+  save_total_limit: 1  # Save only latest for testing
+  load_best_model_at_end: false
+  
+  expert_checkpointing:
+    enabled: false  # Disable for testing
+    
+  stdp_checkpointing:
+    enabled: false  # Disable for testing
+
+# Basic experimental features
+experimental:
+  neuromorphic_computing: true
+  synaptic_plasticity: true
+  meta_learning: false
+  few_shot_learning: false
+  
+  # Limited advanced features
+  hierarchical_memory: false
+  cross_modal_alignment: false
+  affective_computing: true
+  online_adaptation: true
+  continuous_learning: false
