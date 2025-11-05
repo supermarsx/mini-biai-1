@@ -1,0 +1,768 @@
+# mini-biai-1 Configuration - Step 2 Multi-Expert Settings
+# This is the base configuration for the mini-biai-1 multi-expert computational model
+
+# =============================================================================
+# GENERAL SETTINGS
+# =============================================================================
+general:
+  project_name: "mini-biai-1"
+  version: "0.2.0"
+  debug: false
+  random_seed: 42
+  device: "auto"  # auto, cpu, cuda
+  
+# =============================================================================
+# MULTI-EXPERT ROUTING CONFIGURATION
+# =============================================================================
+routing:
+  # Router architecture
+  router_type: "multi_expert"  # multi_expert, sparse_moe, hierarchical
+  n_experts: 4  # Language, Vision, Symbolic, Affect
+  top_k: 2  # Number of experts to activate
+  temperature: 0.1  # Gating temperature
+  spike_threshold: 0.7  # Minimum spike rate for expert activation
+  target_spike_rate: 0.10  # Target firing rate
+  load_balancing_coef: 0.01  # Load balancing regularization
+  
+  # Expert categories and configurations
+  experts:
+    language:
+      name: "Language Expert"
+      description: "Text understanding, generation, and reasoning"
+      domain: "text_processing"
+      specializations: 
+        - "text_generation"
+        - "natural_language_understanding" 
+        - "conversational_context"
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      performance_weight: 1.0
+      
+    vision:
+      name: "Vision Expert" 
+      description: "Visual scene understanding and multimodal processing"
+      domain: "visual_processing"
+      specializations:
+        - "image_understanding"
+        - "visual_scene_analysis"
+        - "image_to_text_tasks"
+        - "multimodal_alignment"
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      performance_weight: 1.0
+      
+    symbolic:
+      name: "Symbolic Expert"
+      description: "Structured reasoning, logic, and mathematics"
+      domain: "symbolic_processing"
+      specializations:
+        - "logical_reasoning"
+        - "mathematical_computation"
+        - "structured_data_processing"
+        - "planning_and_problem_solving"
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      performance_weight: 1.0
+      
+    affect:
+      name: "Affect Expert"
+      description: "Emotional state detection and social cue processing"
+      domain: "affect_processing"
+      specializations:
+        - "emotion_recognition"
+        - "sentiment_analysis" 
+        - "social_cue_processing"
+        - "affect_modulation"
+      activation_threshold: 0.3  # Lower threshold for modulatory expert
+      capacity_weight: 0.8
+      performance_weight: 0.6  # Lower weight as it's primarily modulatory
+      
+  # Gating mechanisms
+  gating:
+    method: "top_k"  # top_k, sparse_gating, learned_gating
+    noise_std: 0.1  # Standard deviation for noisy gating
+    dropout_rate: 0.1  # Dropout for exploration
+    importance_loss_coef: 0.01  # MoE importance loss
+    
+  # Load balancing
+  load_balancing:
+    enabled: true
+    method: "variance"  # variance, entropy, capacity
+    target_usage: 0.25  # Target usage per expert (1/n_experts)
+    balance_temperature: 1.0  # Temperature for balance loss
+    
+  # Expert utilization tracking
+  utilization_tracking:
+    enabled: true
+    window_size: 1000  # Number of steps to track
+    decay_rate: 0.95  # Exponential decay for old usage
+
+# =============================================================================
+# AFFECT MODULATION CONFIGURATION  
+# =============================================================================
+affect:
+  enabled: true
+  log_only: true  # Track affect but don't modify routing in Step 2
+  
+  # Affect state representation
+  state_representation:
+    dimensions: ["valence", "arousal", "dominance"]  # VAD model
+    emotion_categories: 8  # Number of discrete emotion classes
+    
+  # Affect detection from modalities
+  detection:
+    text_affect:
+      enabled: true
+      model: "bert-base-uncased"
+      hidden_size: 512
+      dropout: 0.1
+      
+    visual_affect:
+      enabled: false  # Will be enabled in Step 3
+      model: "resnet18"
+      input_channels: 3
+      hidden_size: 512
+      
+  # Affect state tracking
+  tracking:
+    lstm_hidden_size: 64
+    lstm_layers: 1
+    update_frequency: "per_interaction"  # per_interaction, batch, time_based
+    smoothing_window: 5  # Moving average window
+    
+  # Affect integration parameters
+  integration:
+    valence_bias_strength: 0.3  # Social vs analytical bias from valence
+    arousal_exploration_factor: 0.2  # Arousal effect on exploration
+    emotion_weight_decay: 0.1  # Decay rate for emotion predictions
+    
+  # Affect logging
+  logging:
+    enabled: true
+    log_dir: "./logs/affect/"
+    log_level: "INFO"
+    save_frequency: "batch"  # batch, interaction, time
+    max_log_entries: 10000
+
+# =============================================================================
+# SSM/LINEAR-ATTENTION CONFIGURATION
+# =============================================================================
+language_backbone:
+  # Backbone selection
+  type: "mamba"  # mamba, linear_attention, transformer
+  name: "MambaLanguageModule"
+  
+  # Model architecture
+  d_model: 512
+  n_layers: 4
+  max_position_embeddings: 2048
+  
+  # Mamba-specific settings
+  mamba:
+    d_state: 64  # SSM state dimension
+    d_conv: 4    # Convolution kernel size  
+    expand: 2    # Expansion factor
+    dt_rank: "auto"  # Rank of delta projection
+    
+  # Linear attention alternative
+  linear_attention:
+    n_heads: 8
+    head_dim: 64
+    dropout: 0.1
+    
+  # Transformer fallback
+  transformer:
+    n_heads: 8
+    intermediate_size: 2048
+    dropout: 0.1
+    layer_norm_epsilon: 1e-6
+    
+  # Token processing
+  tokenization:
+    vocab_size: 32000  # Extended vocabulary
+    max_input_length: 2048
+    max_new_tokens: 128
+    
+  # Context integration
+  context_integration:
+    retrieve_chunks: true
+    chunk_size: 512
+    overlap: 64
+    fusion_method: "concat"  # concat, cross_attention, learned_fusion
+    
+  # Generation settings
+  generation:
+    temperature: 0.7
+    top_k: 50
+    top_p: 0.9
+    repetition_penalty: 1.1
+    do_sample: true
+
+# =============================================================================
+# AUTO-LEARNING SYSTEM CONFIGURATION
+# =============================================================================
+auto_learning:
+  enabled: true
+  
+  # STDP (Spike-Timing-Dependent Plasticity) configuration
+  stdp:
+    enabled: true
+    learning_rate: 0.001
+    
+    # STDP parameters
+    tau_pre: 20.0  # Pre-synaptic trace decay
+    tau_post: 20.0  # Post-synaptic trace decay
+    a_plus: 0.1    # Potentiation rate
+    a_minus: 0.1   # Depression rate
+    
+    # Weight constraints
+    weight_bounds:
+      min: 0.0
+      max: 1.0
+      
+    # STDP pathways
+    pathways:
+      router_stdp:
+        enabled: true
+        target_layer: "gating_weights"
+        
+      expert_stdp:
+        enabled: true  
+        target_layer: "expert_weights"
+        
+  # Online learning framework
+  online_learning:
+    enabled: true
+    update_frequency: "batch"  # batch, interaction, time_based
+    
+    # Three-factor learning (reward-modulated STDP)
+    three_factor:
+      enabled: true
+      reward_delay: 5  # Steps to wait for reward signal
+      eligibility_trace_decay: 0.95
+      reward_scale: 1.0
+      
+    # Performance tracking
+    performance_tracking:
+      enabled: true
+      metrics:
+        - "routing_accuracy"
+        - "task_success_rate" 
+        - "expert_utilization"
+        - "affect_correlation"
+      window_size: 1000
+      
+  # Adaptive routing based on performance
+  adaptive_routing:
+    enabled: true
+    
+    # Routing temperature adaptation
+    temperature_adaptation:
+      enabled: true
+      target_performance: 0.8
+      adaptation_rate: 0.01
+      min_temperature: 0.05
+      max_temperature: 0.5
+      
+    # Expert capacity adaptation
+    capacity_adaptation:
+      enabled: true
+      congestion_threshold: 0.8
+      load_rebalance_rate: 0.1
+      
+  # Memory-efficient STDP
+  memory_efficiency:
+    batch_update: true  # Accumulate updates and apply in batches
+    gradient_checkpointing: false  # Save memory at cost of computation
+    quantization: "none"  # none, int8, float16
+    
+  # Learning rate scheduling
+  learning_rate_scheduling:
+    enabled: true
+    scheduler: "cosine"  # cosine, exponential, step
+    warmup_steps: 1000
+    decay_steps: 10000
+    min_lr: 1e-6
+
+# =============================================================================
+# ENHANCED MEMORY CONFIGURATION
+# =============================================================================
+memory:
+  # Hierarchical memory structure
+  hierarchical: true
+  
+  # Short-term memory (STM)
+  stm:
+    capacity: 4096  # Maximum tokens
+    decay_rate: 0.01
+    
+    # Expert-aware STM
+    expert_aware: true
+    expert_buffer_size: 1024  # Per expert
+    
+    # LSTM configuration for STM
+    lstm:
+      hidden_size: 512
+      layers: 1
+      dropout: 0.1
+      
+  # Working memory
+  working_memory:
+    capacity: 1000
+    attention_heads: 8
+    head_dim: 64
+    
+  # Long-term memory (LTM) 
+  ltm:
+    # FAISS index configuration
+    backend: "faiss"
+    metric_type: "cosine"  # cosine, l2, ip
+    
+    # Vector dimensions
+    text_vector_dim: 512
+    image_vector_dim: 512  
+    structured_vector_dim: 512
+    
+    # Multi-modal support
+    multimodal: true
+    cross_modal: true
+    
+    # Index types for different modalities
+    text_index:
+      type: "IVF"  # IVF, HNSW, Flat
+      nlist: 100
+      nprobe: 10
+      
+    image_index:
+      type: "HNSW"  # Better for image retrieval
+      ef_construction: 200
+      ef_search: 100
+      
+    structured_index:
+      type: "Flat"  # Exact search for structured data
+      metric_type: "l2"
+      
+  # Memory consolidation
+  consolidation:
+    enabled: true
+    interval: 1000  # Steps between consolidation
+    strength_threshold: 0.7
+    decay_factor: 0.1
+    
+  # Episodic memory
+  episodic_memory:
+    capacity: 10000
+    indexing_method: "faiss"
+    similarity_threshold: 0.85
+    
+  # Semantic memory  
+  semantic_memory:
+    vector_dim: 768
+    embedding_model: "bert-base-uncased"
+    update_frequency: 100
+
+# =============================================================================
+# EXPERT-SPECIFIC CONFIGURATION TEMPLATES
+# =============================================================================
+expert_configs:
+  # Language Expert Configuration
+  language_expert:
+    architecture: "mamba"
+    d_model: 512
+    n_layers: 4
+    
+    # Specialized capabilities
+    capabilities:
+      text_generation:
+        enabled: true
+        max_length: 512
+        temperature: 0.7
+        
+      natural_language_understanding:
+        enabled: true
+        task_types: ["classification", "qa", "summarization"]
+        
+      conversational_context:
+        enabled: true
+        context_window: 1024
+        
+    # Performance tuning
+    performance:
+      batch_size: 32
+      max_inference_time: 50  # ms
+      accuracy_threshold: 0.8
+      
+  # Vision Expert Configuration  
+  vision_expert:
+    architecture: "resnet18"
+    input_channels: 3
+    hidden_size: 512
+    
+    # Specialized capabilities
+    capabilities:
+      image_understanding:
+        enabled: true
+        input_size: [224, 224]
+        
+      visual_scene_analysis:
+        enabled: true
+        object_detection: false  # Will be added in Step 3
+        
+      multimodal_alignment:
+        enabled: true
+        fusion_method: "cross_attention"
+        
+    # Performance tuning
+    performance:
+      batch_size: 16
+      max_inference_time: 100  # ms
+      accuracy_threshold: 0.75
+      
+  # Symbolic Expert Configuration
+  symbolic_expert:
+    architecture: "transformer"
+    d_model: 512
+    n_layers: 3
+    
+    # Specialized capabilities  
+    capabilities:
+      logical_reasoning:
+        enabled: true
+        reasoning_depth: 3
+        
+      mathematical_computation:
+        enabled: true
+        precision: "float32"
+        
+      planning_and_problem_solving:
+        enabled: true
+        search_depth: 5
+        
+    # Performance tuning
+    performance:
+      batch_size: 64
+      max_inference_time: 30  # ms
+      accuracy_threshold: 0.85
+
+# =============================================================================
+# PERFORMANCE TUNING CONFIGURATION
+# =============================================================================
+performance_tuning:
+  # Latency optimization
+  latency:
+    target_latency_ms: 150
+    budget_allocation:
+      routing: 10  # ms
+      retrieval: 20  # ms  
+      expert_processing: 100  # ms
+      affect_detection: 5  # ms
+      generation: 15  # ms
+    
+    # Optimization techniques
+    optimizations:
+      batching: true
+      async_processing: false  # Will be enabled in Step 4
+      cache_enabled: true
+      cache_size: 1000
+      
+  # Memory optimization
+  memory:
+    target_memory_gb: 8
+    gc_frequency: "batch"  # never, batch, epoch
+    
+    # Memory efficiency
+    gradient_checkpointing: true
+    cpu_offloading: false  # Will be enabled in Step 4
+    mixed_precision: true
+    
+  # Throughput optimization  
+  throughput:
+    target_qps: 10  # Queries per second
+    batch_processing: true
+    parallel_experts: true  # Run top-k experts in parallel
+    
+  # Scalability settings
+  scalability:
+    max_batch_size: 32
+    max_concurrent_requests: 4
+    auto_scaling: false  # Will be enabled in Step 4
+
+# =============================================================================
+# TRAINING CONFIGURATION
+# =============================================================================
+training:
+  # Multi-task training
+  multi_task:
+    router_loss_weight: 0.4
+    stdp_loss_weight: 0.3
+    affect_loss_weight: 0.2
+    language_loss_weight: 0.1
+    
+  # Synthetic task generation
+  synthetic_tasks:
+    enabled: true
+    n_samples: 10000
+    
+    # Task domains
+    domains: ["math", "creative", "technical", "emotional", "visual"]
+    
+    # Task types per domain
+    task_types:
+      math: ["arithmetic", "algebra", "geometry"]
+      creative: ["storytelling", "poetry", "brainstorming"]
+      technical: ["programming", "explanation", "debugging"]
+      emotional: ["counseling", "sentiment", "empathy"]
+      visual: ["description", "analysis", "reasoning"]
+      
+  # Optimization settings
+  optimization:
+    optimizer: "adamw"
+    learning_rate: 5e-5
+    weight_decay: 0.01
+    adam_beta1: 0.9
+    adam_beta2: 0.999
+    adam_epsilon: 1e-8
+    
+  # Scheduler settings
+  scheduler:
+    type: "cosine"
+    warmup_steps: 1000
+    max_steps: 100000
+    
+  # Training loop
+  training_loop:
+    max_epochs: 10
+    eval_steps: 1000
+    save_steps: 1000
+    logging_steps: 100
+    gradient_accumulation_steps: 1
+    
+  # Regularization
+  regularization:
+    max_grad_norm: 1.0
+    dropout_rate: 0.1
+    label_smoothing: 0.1
+    
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 3
+    min_delta: 0.001
+    metric: "eval_loss"
+
+# =============================================================================
+# DATA SETTINGS
+# =============================================================================
+data:
+  # Data paths
+  train_data_path: "data/step2/train/"
+  val_data_path: "data/step2/val/"
+  test_data_path: "data/step2/test/"
+  
+  # Batch processing
+  batch_size: 32
+  sequence_length: 512
+  
+  # Preprocessing
+  normalize: true
+  padding_token_id: 0
+  mask_token_id: 1
+  special_tokens:
+    - [PAD, 0]
+    - [MASK, 1]
+    - [CLS, 2]
+    - [SEP, 3]
+    - [UNK, 4]
+    
+  # Model paths
+  model_save_path: "models/step2/"
+  tensorboard_log_path: "logs/step2/tensorboard/"
+  
+  # Data augmentation
+  augmentation:
+    text:
+      enabled: false  # Will be enabled in Step 3
+      methods: ["back_translation", "synonym_replacement"]
+      
+    affect:
+      enabled: true
+      synthetic_affect: true
+      affect_augmentation_factor: 2
+
+# =============================================================================
+# INFERENCE CONFIGURATION
+# =============================================================================
+inference:
+  # Generation parameters
+  temperature: 0.7
+  top_k: 50
+  top_p: 0.9
+  repetition_penalty: 1.1
+  max_length: 512
+  
+  # Beam search
+  beam_search:
+    enabled: false  # Will be enabled in Step 3
+    beam_size: 5
+    length_penalty: 1.0
+    
+  # Sampling strategies
+  sampling_strategy: "top_p"  # greedy, top_k, top_p, nucleus
+  
+  # Caching
+  caching:
+    enabled: true
+    cache_size: 1000
+    cache_type: "lru"  # lru, fifo, lfu
+    
+  # Model serving
+  serving:
+    batch_inference: true
+    async_inference: false  # Will be enabled in Step 4
+    max_concurrent: 4
+
+# =============================================================================
+# EVALUATION METRICS
+# =============================================================================
+evaluation:
+  # Multi-expert metrics
+  multi_expert_metrics:
+    - "expert_utilization"
+    - "routing_accuracy"
+    - "load_balance_score"
+    - "expert_specialization_score"
+    
+  # Auto-learning metrics
+  auto_learning_metrics:
+    - "stdp_learning_rate"
+    - "online_performance"
+    - "plasticity_stability"
+    - "adaptation_speed"
+    
+  # Affect metrics
+  affect_metrics:
+    - "affect_detection_accuracy"
+    - "affect_routing_correlation"
+    - "affect_consistency"
+    
+  # System metrics
+  system_metrics:
+    - "end_to_end_latency"
+    - "memory_efficiency"
+    - "throughput"
+    - "spike_rates"
+    
+  # Language evaluation
+  language_evaluation:
+    perplexity:
+      stride: 512
+    bleu: true
+    rouge: true
+    accuracy: true
+    f1_score: true
+
+# =============================================================================
+# HARDWARE SPECIFICATIONS
+# =============================================================================
+hardware:
+  # GPU settings
+  gpu_memory_fraction: 0.8
+  mixed_precision: true
+  
+  # Distributed training
+  distributed:
+    enabled: false  # Will be enabled in Step 4
+    world_size: 1
+    rank: 0
+    
+  # Memory optimization
+  memory_optimization:
+    gradient_checkpointing: true
+    cpu_offloading: false
+    quantization: "none"  # none, int8, float16
+    
+  # Parallel processing
+  parallel_processing:
+    expert_parallelism: true
+    intra_op_parallelism: true
+    inter_op_parallelism: false
+
+# =============================================================================
+# LOGGING AND MONITORING
+# =============================================================================
+logging:
+  # General logging
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # TensorBoard
+  tensorboard:
+    enabled: true
+    log_dir: "logs/step2/tensorboard/"
+    
+  # Weights and Biases
+  wandb:
+    enabled: false
+    project_name: "mini-biai-1"
+    
+  # Multi-expert logging
+  multi_expert_logging:
+    enabled: true
+    log_dir: "logs/step2/experts/"
+    log_routing_decisions: true
+    log_expert_utilization: true
+    
+  # Affect logging
+  affect_logging:
+    enabled: true
+    log_dir: "logs/step2/affect/"
+    log_state_transitions: true
+    save_visualizations: false  # Will be enabled in Step 3
+    
+  # Auto-learning logging  
+  auto_learning_logging:
+    enabled: true
+    log_dir: "logs/step2/learning/"
+    log_stdp_weights: true
+    log_performance_metrics: true
+
+# =============================================================================
+# CHECKPOINTING CONFIGURATION
+# =============================================================================
+checkpointing:
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  greater_is_better: false
+  
+  # Multi-expert checkpointing
+  expert_checkpointing:
+    enabled: true
+    save_individual_experts: false  # For debugging
+    save_routing_state: true
+    
+  # STDP state checkpointing
+  stdp_checkpointing:
+    enabled: true
+    save_synaptic_weights: true
+    save_trace_history: false  # Memory intensive
+
+# =============================================================================
+# EXPERIMENTAL FEATURES
+# =============================================================================
+experimental:
+  neuromorphic_computing: true
+  synaptic_plasticity: true
+  meta_learning: false  # Will be enabled in Step 3
+  few_shot_learning: false  # Will be enabled in Step 3
+  
+  # Advanced features
+  hierarchical_memory: true
+  cross_modal_alignment: true
+  affective_computing: true
+  online_adaptation: true
+  
+  # Research features
+  continuous_learning: true
+  catastrophic_forgetting_mitigation: false  # Will be enabled in Step 3
+  meta_plasticity: false  # Will be enabled in Step 3
