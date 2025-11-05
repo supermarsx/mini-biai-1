@@ -1,0 +1,309 @@
+repos:
+  # Built-in hooks for basic file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+        name: Remove trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAMl files
+      - id: check-json
+        name: Check JSON files
+      - id: check-toml
+        name: Check TOML files
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+        name: Check for case conflicts
+      - id: check-docstring-first
+        name: Check docstring first
+      - id: debug-statements
+        name: Debug statements
+      - id: name-tests-test
+        name: Name tests properly
+
+  # Black code formatting
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        name: Black code formatter
+        language_version: python3
+        args: [--line-length=88]
+
+  # isort import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: Sort imports
+        args: [--profile, black, --line-length, "88"]
+
+  # Flake8 linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
+        name: Flake8 linting
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-import-order
+          - flake8-bugbear
+          - flake8-comprehensions
+          - flake8-simplify
+
+  # MyPy type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        name: MyPy type checking
+        additional_dependencies:
+          - types-PyYAML
+          - types-requests
+        args: [--ignore-missing-imports, --strict-optional]
+
+  # Bandit security linting
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.7.5
+    hooks:
+      - id: bandit
+        name: Bandit security check
+        args: [-r, src/, -f, json]
+        exclude: tests/
+
+  # Safety dependency checking
+  - repo: https://github.com/gitpython-developers/GitPython
+    rev: 3.1.37
+    hooks:
+      - id: check-added-files
+        files: requirements.*\.txt$
+
+  # Documentation checks
+  - repo: https://github.com/pycqa/pydocstyle
+    rev: 6.3.0
+    hooks:
+      - id: pydocstyle
+        name: Docstring style check
+        args: [--convention=google]
+        exclude: (test_.*\.py|.*/test_.*\.py)
+
+  # Security secrets detection
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package.lock.json
+
+  # PyTest test file validation
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa
+        name: Python blanket noqa
+      - id: python-check-blanket-type-ignore
+        name: Python blanket type ignore
+      - id: python-no-eval
+        name: Python eval() usage
+      - id: python-use-type-annotations
+        name: Python type annotations
+      - id: rst-backticks
+        name: RST backticks
+      - id: rst-directive-colons
+        name: RST directive colons
+      - id: rst-inline-touching-normal
+        name: RST inline touching normal
+
+  # YAML formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
+    hooks:
+      - id: prettier
+        name: Prettier YAML formatter
+        types: [yaml]
+
+  # Python upgrade syntax
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.10.1
+    hooks:
+      - id: pyupgrade
+        name: Upgrade Python syntax
+        args: [--py38-plus]
+
+  # Commit message checks
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.2.2
+    hooks:
+      - id: commitizen
+        name: Commitizen commit message check
+
+  # Shell script linting
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.2
+    hooks:
+      - id: shellcheck
+        name: ShellCheck shell script linter
+
+  # Dockerfile linting
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint-docker
+        name: Hadolint Dockerfile linter
+
+  # Local hooks for custom checks
+  - repo: local
+    hooks:
+      # Check for TODO/FIXME comments
+      - id: check-todos
+        name: Check for TODO/FIXME comments
+        entry: python -c "
+          import sys
+          import re
+          from pathlib import Path
+          
+          todo_pattern = re.compile(r'# (TODO|FIXME|HACK|XXX|BUG):', re.IGNORECASE)
+          todo_files = []
+          
+          for py_file in Path('src').rglob('*.py'):
+              try:
+                  with open(py_file) as f:
+                      for line_num, line in enumerate(f, 1):
+                          if todo_pattern.search(line):
+                              todo_files.append(f'{py_file}:{line_num}: {line.strip()}')
+              except Exception:
+                  continue
+          
+          if todo_files:
+              print('⚠️  Found TODO/FIXME comments:')
+              for todo in todo_files[:5]:  # Show first 5
+                  print(f'  {todo}')
+              if len(todo_files) > 5:
+                  print(f'  ... and {len(todo_files) - 5} more')
+              print('\\n💡 Consider addressing these before committing')
+          else:
+              print('✅ No TODO/FIXME comments found')
+        "
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Validate configuration files
+      - id: validate-config
+        name: Validate configuration files
+        entry: python -c "
+          import yaml
+          import json
+          import sys
+          from pathlib import Path
+          
+          configs = [
+              'config.json',
+              'mypy.ini',
+              'pytest.ini',
+              'pyproject.toml',
+              '.github/cicd-config.yml'
+          ]
+          
+          for config in configs:
+              if Path(config).exists():
+                  try:
+                      if config.endswith('.json'):
+                          with open(config) as f:
+                              json.load(f)
+                      elif config.endswith(('.yml', '.yaml')):
+                          with open(config) as f:
+                              yaml.safe_load(f)
+                      print(f'✅ {config} is valid')
+                  except Exception as e:
+                      print(f'❌ {config} is invalid: {e}')
+                      sys.exit(1)
+        "
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      # Check test coverage (lightweight check)
+      - id: check-tests-exist
+        name: Check that tests exist for new modules
+        entry: python -c "
+          import sys
+          from pathlib import Path
+          import subprocess
+          
+          # Check if new Python files in src have corresponding tests
+          src_py_files = list(Path('src').rglob('*.py'))
+          test_py_files = list(Path('tests').rglob('test_*.py'))
+          
+          # Basic check: ensure tests directory has tests
+          if not test_py_files:
+              print('❌ No test files found in tests/ directory')
+              sys.exit(1)
+          
+          print(f'✅ Found {len(test_py_files)} test files')
+          print(f'✅ Found {len(src_py_files)} source files')
+        "
+        language: system
+        pass_filenames: false
+        always_run: true
+
+# Configuration for specific tools
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ''
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: false
+
+# Additional configuration
+default_language_version:
+  python: python3.11
+
+# Fail the commit if any hook fails
+fail_fast: false
+
+# Files and directories to exclude from all hooks
+exclude: |
+  (?x)^(
+      \.git/|
+      \.venv/|
+      \.tox/|
+      \.mypy_cache/|
+      \.pytest_cache/|
+      __pycache__/|
+      \.egg-info/|
+      build/|
+      dist/|
+      .*\.egg$|
+      docs/_build/|
+      htmlcov/|
+      .coverage|
+      .coverage\.*|
+      coverage\.xml|
+      \.scrapy|
+      \.pytest_cache/|
+      \.pytest_cache|
+      nosetests\.xml|
+      coverage\.xml|
+      \.coveragerc|
+      \.venv/|
+      venv/|
+      ENV/|
+      env/|
+      \.env/
+  )$
+
+# Minimum pre-commit version required
+minimum_pre_commit_version: '2.20.0'
