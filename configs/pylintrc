@@ -1,0 +1,334 @@
+# PyLint Configuration for Mini BIAI-1
+# ======================================
+
+[MASTER]
+# Use multiple processes to speed up PyLint
+jobs=0
+
+# Pickle collected data for later comparisons
+persistent=yes
+
+# List of plugins (as comma separated values of python modules names) to load
+load-plugins=
+
+# Use a conservative default here; 2.0 seems a bit high
+confidence=
+
+# Allow loading of arbitrary C extensions
+unsafe-load-any-extension=no
+
+[MESSAGES CONTROL]
+# Disable certain warnings that are not relevant or too strict for our use case
+disable=
+    # Documentation related
+    missing-module-docstring,
+    missing-class-docstring,
+    missing-function-docstring,
+    
+    # Naming conventions (use PEP8 standards but not too strict)
+    invalid-name,
+    consider-using-f-string,
+    
+    # Code style (handled by Black and isort)
+    line-too-long,
+    bad-whitespace,
+    trailing-whitespace,
+    
+    # Import organization (handled by isort)
+    wrong-import-order,
+    ungrouped-imports,
+    
+    # Complexity warnings (addressed separately)
+    too-many-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-statements,
+    
+    # Design patterns (some are intentional)
+    too-few-public-methods,
+    too-many-public-methods,
+    
+    # Exception handling
+    broad-except,
+    bare-except,
+
+# Enable specific warnings we want to catch
+enable=
+    useless-suppression,
+    deprecated-pragma,
+    use-symbolic-message-instead,
+
+[REPORTS]
+# Set the output format
+output-format=text
+
+# Include message's id in output
+include-ids=yes
+
+# Template used to display messages
+msg-template={path}:{line}:{column}: {msg_id}: {msg} ({symbol})
+
+# Set the cache size for astng objects
+cache-size=500
+
+# Tells whether to display a full report or only the messages
+reports=no
+
+# Activate the evaluation score
+score=yes
+
+[REFACTORING]
+# Maximum number of nested blocks for function / method body
+max-nested-blocks=5
+
+# Complete name of functions that never returns
+never-returning-functions=sys.exit
+
+[BASIC]
+# Good variable names which should always be accepted
+good-names=i,
+    j,
+    k,
+    ex,
+    Run,
+    _,
+    id,
+    pk,
+    op,
+    
+# Bad variable names which should always be refused
+bad-names=foo,
+    bar,
+    baz,
+    toto,
+    tutu,
+    tata,
+
+# Colon-delimited sets of names that determine each other's naming style when the name regexes allow several styles
+name-group=
+
+# Include a hint for the correct naming format with invalid-name
+include-naming-hint=no
+
+# Regular expression matching correct function names
+function-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct variable names
+variable-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct constant names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+# Regular expression matching correct attribute names
+attr-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct argument names
+argument-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct class attribute names
+class-attribute-rgx=([A-Za-z_][A-Za-z0-9_]{2,30}|(__.*__))$
+
+# Regular expression matching correct inline iteration names
+inlinevar-rgx=[A-Za-z_][A-Za-z0-9]*$
+
+# Regular expression matching correct class names
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+# Regular expression matching correct module names
+module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
+
+# Regular expression matching correct method names
+method-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct function names
+function-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct parameter names
+argument-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct attribute names in classes
+attr-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct class attribute names
+class-attribute-rgx=([A-Za-z_][A-Za-z0-9_]{2,30}|(__.*__))$
+
+# Regular expression matching correct variable names
+variable-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct constant names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+[FORMAT]
+# Expected format of line ending
+expected-line-ending-format=
+
+# Regexp for a line that is allowed to be longer than the limit
+ignore-long-lines=^\s*(# )?<?https?://\S+>?$
+
+# Allow the body of an if to be on the same line as the test if there is no else
+single-line-if-stmt=no
+
+# Maximum number of characters on a single line
+max-line-length=88
+
+# Maximum number of lines in a module
+max-module-lines=1000
+
+# String used as indentation unit
+indent-string='    '
+
+# Number of spaces of indent required inside a hanging or continued line
+indent-after-paren=4
+
+# Expected format of line ending
+expected-line-ending-format=
+
+[LOGGING]
+# Logging modules to check that the string format arguments are in logging function parameter format
+logging-modules=logging
+
+[MISCELLANEOUS]
+# List of note tags to take in consideration
+notes=FIXME,
+    XXX,
+    TODO,
+    HACK,
+    BUG
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+# Ignore comments when computing similarities
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities
+ignore-imports=no
+
+[SPELLING]
+# Spelling dictionary name
+spelling-dict=
+
+# List of comma separated words that should not be checked
+spelling-ignore-words=
+
+# A path to a file that contains private dictionary
+spelling-private-dict-file=
+
+# Tells whether to store unknown words to indicated private dictionary
+spelling-store-unknown-words=no
+
+[TYPECHECK]
+# List of decorators that produce context managers
+contextmanager-decorators=contextlib.contextmanager
+
+# List of members which are set dynamically and missed by pylint inference system
+generated-members=
+
+# Tells whether missing members accessed in mixin class should be ignored
+ignore-mixin-members=yes
+
+# This flag controls whether pylint should warn about no-member and similar checks whenever an opaque object is returned when inferring
+ignore-on-opaque-inference=yes
+
+# List of class names for which member attributes should not be checked
+ignored-classes=optparse.Values,thread._local,_thread._local
+
+# List of module names for which member attributes should not be checked
+ignored-modules=
+
+# Show a hint with a possible solution when an unknown-option-value error is found
+unknown-option-value=
+
+[VARIABLES]
+# List of additional names supposed to be defined in builtins
+additional-builtins=
+
+# Tells whether unused global variables should be treated as a violation
+allow-global-unused-variables=yes
+
+# List of strings which can identify a callback function by name
+callbacks=cb_,
+    _cb
+
+# A regular expression matching the name of dummy variables
+dummy-variables-rgx=_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_
+
+# Argument names that match this expression will be ignored
+ignored-argument-names=_.*|^ignored_|^unused_
+
+# Tells whether we should check for unused import in __init__ files
+init-import=no
+
+# List of qualified module names which can have objects that can redefine builtins
+redefining-builtins-modules=six.moves,past.builtins,future.builtins
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes
+defining-attr-methods=__init__,
+    __new__,
+    setUp
+
+# List of member names, which should be excluded from the protected access warning
+exclude-protected=_asdict,
+    _fields,
+    _replace,
+    _source,
+    _make
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=10
+
+# Maximum number of attributes for a class
+max-attributes=15
+
+# Maximum number of boolean expressions in an if statement
+max-bool-expr=5
+
+# Maximum number of branch for function / method body
+max-branches=12
+
+# Maximum number of locals for function / method body
+max-locals=20
+
+# Maximum number of parents for a class
+max-parents=7
+
+# Maximum number of public methods for a class
+max-public-methods=25
+
+# Maximum number of return / yield for function / method body
+max-returns=6
+
+# Maximum number of statements in function / method body
+max-statements=50
+
+# Minimum number of public methods for a class
+min-public-methods=1
+
+[IMPORTS]
+# Deprecated modules which should not be used
+deprecated-modules=optparse,tkinter.tix
+
+# Create a graph of external dependencies in the given file
+ext-import-graph=
+
+# Create a graph of every (i.e. internal and external) dependencies in the given file
+import-graph=
+
+# Create a graph of internal dependencies in the given file
+int-import-graph=
+
+# Force import order to recognize a module as part of the standard compatibility libraries
+known-standard-library=
+
+# Force import order to recognize a module as part of a third party library
+known-third-party=enchant
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when being caught
+overgeneral-exceptions=Exception
