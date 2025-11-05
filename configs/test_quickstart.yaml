@@ -1,151 +1,572 @@
-# Quick-start configuration for mini-biai-1 Step 2
-# Optimized for development and testing environments
-
-general:
-  project_name: "mini-biai-1-quickstart"
-  version: "0.2.0"
-  debug: true
-  random_seed: 42
-  device: "auto"
-
-routing:
-  n_experts: 2  # Simplified to 2 experts for faster testing
-  top_k: 1      # Single expert for speed
-  temperature: 0.2
-  spike_threshold: 0.8
-  target_spike_rate: 0.15
-  
-  experts:
-    language:
-      name: "Language Expert"
-      activation_threshold: 0.4
-    
-    symbolic:
-      name: "Symbolic Expert"
-      activation_threshold: 0.4
-
-# Simplified affect (logging only)
 affect:
+  detection:
+    text_affect:
+      dropout: 0.1
+      enabled: true
+      hidden_size: 512
+      model: bert-base-uncased
+    visual_affect:
+      enabled: false
+      hidden_size: 512
+      input_channels: 3
+      model: resnet18
   enabled: true
+  integration:
+    arousal_exploration_factor: 0.2
+    emotion_weight_decay: 0.1
+    valence_bias_strength: 0.3
   log_only: true
-  state_representation:
-    dimensions: ["valence", "arousal", "dominance"]
-    emotion_categories: 6
-
-# Faster language backbone
-language_backbone:
-  type: "linear_attention"  # Faster than Mamba
-  d_model: 256             # Reduced size
-  n_layers: 2              # Fewer layers
-  max_position_embeddings: 1024
-  
-  linear_attention:
-    n_heads: 4
-    head_dim: 64
-    dropout: 0.1
-
-# Simplified auto-learning
-auto_learning:
-  enabled: true
-  stdp:
+  logging:
     enabled: true
-    learning_rate: 0.002  # Faster learning
+    log_dir: ./logs/affect/
+    log_level: INFO
+    max_log_entries: 10000
+    save_frequency: batch
+  state_representation:
+    dimensions:
+    - valence
+    - arousal
+    - dominance
+    emotion_categories: 8
+  tracking:
+    lstm_hidden_size: 64
+    lstm_layers: 1
+    smoothing_window: 5
+    update_frequency: per_interaction
+auto_learning:
+  adaptive_routing:
+    capacity_adaptation:
+      congestion_threshold: 0.8
+      enabled: true
+      load_rebalance_rate: 0.1
+    enabled: true
+    temperature_adaptation:
+      adaptation_rate: 0.01
+      enabled: true
+      max_temperature: 0.5
+      min_temperature: 0.05
+      target_performance: 0.8
+  enabled: true
+  learning_rate_scheduling:
+    decay_steps: 10000
+    enabled: true
+    min_lr: 1e-6
+    scheduler: cosine
+    warmup_steps: 1000
+  memory_efficiency:
+    batch_update: true
+    gradient_checkpointing: false
+    quantization: none
   online_learning:
     enabled: true
-    update_frequency: "interaction"
-
-# Simplified memory
-memory:
-  stm:
-    capacity: 2048  # Reduced capacity
-  working_memory:
-    capacity: 500
-  ltm:
-    backend: "simple"  # Use simple retrieval
-    text_vector_dim: 256
-
-# Quick performance tuning
-performance_tuning:
-  latency:
-    target_latency_ms: 300  # More relaxed for development
-    budget_allocation:
-      routing: 20
-      retrieval: 30
-      expert_processing: 200
-      affect_detection: 10
-      generation: 40
-  
-  memory:
-    target_memory_gb: 4
-    mixed_precision: true
-
-# Simplified training for quick start
-training:
-  max_epochs: 3           # Quick training
-  eval_steps: 500
-  save_steps: 500
-  logging_steps: 100
-  
-  optimization:
-    learning_rate: 1e-4
-    optimizer: "adamw"
-    
-# Quick data settings
+    performance_tracking:
+      enabled: true
+      metrics:
+      - routing_accuracy
+      - task_success_rate
+      - expert_utilization
+      - affect_correlation
+      window_size: 1000
+    three_factor:
+      eligibility_trace_decay: 0.95
+      enabled: true
+      reward_delay: 5
+      reward_scale: 1.0
+    update_frequency: batch
+  stdp:
+    a_minus: 0.1
+    a_plus: 0.1
+    enabled: true
+    learning_rate: 0.001
+    pathways:
+      expert_stdp:
+        enabled: true
+        target_layer: expert_weights
+      router_stdp:
+        enabled: true
+        target_layer: gating_weights
+    tau_post: 20.0
+    tau_pre: 20.0
+    weight_bounds:
+      max: 1.0
+      min: 0.0
+checkpointing:
+  expert_checkpointing:
+    enabled: true
+    save_individual_experts: false
+    save_routing_state: true
+  greater_is_better: false
+  load_best_model_at_end: true
+  metric_for_best_model: eval_loss
+  save_total_limit: 3
+  stdp_checkpointing:
+    enabled: true
+    save_synaptic_weights: true
+    save_trace_history: false
 data:
-  batch_size: 16          # Smaller batches for speed
-  sequence_length: 256
-  
-  # Simplified paths
-  train_data_path: "data/quickstart/train/"
-  val_data_path: "data/quickstart/val/"
-  model_save_path: "models/quickstart/"
-
-# Simplified inference
-inference:
-  temperature: 0.8        # More creative for testing
-  max_length: 256
-  do_sample: true
-  
-  caching:
-    enabled: true
-    cache_size: 500
-
-# Simplified evaluation
+  augmentation:
+    affect:
+      affect_augmentation_factor: 2
+      enabled: true
+      synthetic_affect: true
+    text:
+      enabled: false
+      methods:
+      - back_translation
+      - synonym_replacement
+  batch_size: 32
+  mask_token_id: 1
+  model_save_path: models/step2/
+  normalize: true
+  padding_token_id: 0
+  sequence_length: 512
+  special_tokens:
+  - - PAD
+    - 0
+  - - MASK
+    - 1
+  - - CLS
+    - 2
+  - - SEP
+    - 3
+  - - UNK
+    - 4
+  tensorboard_log_path: logs/step2/tensorboard/
+  test_data_path: data/step2/test/
+  train_data_path: data/step2/train/
+  val_data_path: data/step2/val/
 evaluation:
-  metrics:
-    - "perplexity"
-    - "accuracy"
-    - "expert_utilization"
-
-# Hardware settings for development
+  affect_metrics:
+  - affect_detection_accuracy
+  - affect_routing_correlation
+  - affect_consistency
+  auto_learning_metrics:
+  - stdp_learning_rate
+  - online_performance
+  - plasticity_stability
+  - adaptation_speed
+  language_evaluation:
+    accuracy: true
+    bleu: true
+    f1_score: true
+    perplexity:
+      stride: 512
+    rouge: true
+  multi_expert_metrics:
+  - expert_utilization
+  - routing_accuracy
+  - load_balance_score
+  - expert_specialization_score
+  system_metrics:
+  - end_to_end_latency
+  - memory_efficiency
+  - throughput
+  - spike_rates
+experimental:
+  affective_computing: true
+  catastrophic_forgetting_mitigation: false
+  continuous_learning: true
+  cross_modal_alignment: true
+  few_shot_learning: false
+  hierarchical_memory: true
+  meta_learning: false
+  meta_plasticity: false
+  neuromorphic_computing: true
+  online_adaptation: true
+  synaptic_plasticity: true
+expert_configs:
+  language_expert:
+    architecture: mamba
+    capabilities:
+      conversational_context:
+        context_window: 1024
+        enabled: true
+      natural_language_understanding:
+        enabled: true
+        task_types:
+        - classification
+        - qa
+        - summarization
+      text_generation:
+        enabled: true
+        max_length: 512
+        temperature: 0.7
+    d_model: 512
+    n_layers: 4
+    performance:
+      accuracy_threshold: 0.8
+      batch_size: 32
+      max_inference_time: 50
+  symbolic_expert:
+    architecture: transformer
+    capabilities:
+      logical_reasoning:
+        enabled: true
+        reasoning_depth: 3
+      mathematical_computation:
+        enabled: true
+        precision: float32
+      planning_and_problem_solving:
+        enabled: true
+        search_depth: 5
+    d_model: 512
+    n_layers: 3
+    performance:
+      accuracy_threshold: 0.85
+      batch_size: 64
+      max_inference_time: 30
+  vision_expert:
+    architecture: resnet18
+    capabilities:
+      image_understanding:
+        enabled: true
+        input_size:
+        - 224
+        - 224
+      multimodal_alignment:
+        enabled: true
+        fusion_method: cross_attention
+      visual_scene_analysis:
+        enabled: true
+        object_detection: false
+    hidden_size: 512
+    input_channels: 3
+    performance:
+      accuracy_threshold: 0.75
+      batch_size: 16
+      max_inference_time: 100
+general:
+  debug: false
+  device: auto
+  project_name: mini-biai-1
+  random_seed: 42
+  version: 0.2.0
+generated:
+  generation_timestamp: /workspace
+  generator_version: 0.2.0
+  requirements:
+    expert_count: 4
+    features:
+      affect: true
+      auto_learning: true
+      distributed: false
+      vision: true
+    gpu_memory_gb: null
+    latency_target_ms: 200
+    memory_gb: 4
+    project_name: mini-biai-1
 hardware:
-  gpu_memory_fraction: 0.6
-  mixed_precision: true
-  
+  distributed:
+    enabled: false
+    rank: 0
+    world_size: 1
+  gpu_memory_fraction: 0.8
   memory_optimization:
-    gradient_checkpointing: false  # Speed over memory
     cpu_offloading: false
-
-# Simplified logging
+    gradient_checkpointing: true
+    quantization: none
+  mixed_precision: true
+  parallel_processing:
+    expert_parallelism: true
+    inter_op_parallelism: false
+    intra_op_parallelism: true
+inference:
+  beam_search:
+    beam_size: 5
+    enabled: false
+    length_penalty: 1.0
+  caching:
+    cache_size: 1000
+    cache_type: lru
+    enabled: true
+  max_length: 512
+  repetition_penalty: 1.1
+  sampling_strategy: top_p
+  serving:
+    async_inference: false
+    batch_inference: true
+    max_concurrent: 4
+  temperature: 0.7
+  top_k: 50
+  top_p: 0.9
+language_backbone:
+  context_integration:
+    chunk_size: 512
+    fusion_method: concat
+    overlap: 64
+    retrieve_chunks: true
+  d_model: 512
+  generation:
+    do_sample: true
+    repetition_penalty: 1.1
+    temperature: 0.7
+    top_k: 50
+    top_p: 0.9
+  linear_attention:
+    dropout: 0.1
+    head_dim: 64
+    n_heads: 8
+  mamba:
+    d_conv: 4
+    d_state: 64
+    dt_rank: auto
+    expand: 2
+  max_position_embeddings: 2048
+  n_layers: 4
+  name: MambaLanguageModule
+  tokenization:
+    max_input_length: 2048
+    max_new_tokens: 128
+    vocab_size: 32000
+  transformer:
+    dropout: 0.1
+    intermediate_size: 2048
+    layer_norm_epsilon: 1e-6
+    n_heads: 8
+  type: mamba
 logging:
-  level: "DEBUG"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  
-  tensorboard:
-    enabled: true
-    log_dir: "logs/quickstart/"
-    
-  multi_expert_logging:
-    enabled: true
-    log_dir: "logs/quickstart/experts/"
-    
   affect_logging:
     enabled: true
-    log_dir: "logs/quickstart/affect/"
-
-# Simplified experimental features
-experimental:
-  neuromorphic_computing: true
-  synaptic_plasticity: true
-  meta_learning: false
-  few_shot_learning: false
+    log_dir: logs/step2/affect/
+    log_state_transitions: true
+    save_visualizations: false
+  auto_learning_logging:
+    enabled: true
+    log_dir: logs/step2/learning/
+    log_performance_metrics: true
+    log_stdp_weights: true
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+  multi_expert_logging:
+    enabled: true
+    log_dir: logs/step2/experts/
+    log_expert_utilization: true
+    log_routing_decisions: true
+  tensorboard:
+    enabled: true
+    log_dir: logs/step2/tensorboard/
+  wandb:
+    enabled: false
+    project_name: mini-biai-1
+memory:
+  consolidation:
+    decay_factor: 0.1
+    enabled: true
+    interval: 1000
+    strength_threshold: 0.7
+  episodic_memory:
+    capacity: 10000
+    indexing_method: faiss
+    similarity_threshold: 0.85
+  hierarchical: true
+  ltm:
+    backend: faiss
+    cross_modal: true
+    image_index:
+      ef_construction: 200
+      ef_search: 100
+      type: HNSW
+    image_vector_dim: 512
+    metric_type: cosine
+    multimodal: true
+    structured_index:
+      metric_type: l2
+      type: Flat
+    structured_vector_dim: 512
+    text_index:
+      nlist: 100
+      nprobe: 10
+      type: IVF
+    text_vector_dim: 512
+  semantic_memory:
+    embedding_model: bert-base-uncased
+    update_frequency: 100
+    vector_dim: 768
+  stm:
+    capacity: 4096
+    decay_rate: 0.01
+    expert_aware: true
+    expert_buffer_size: 1024
+    lstm:
+      dropout: 0.1
+      hidden_size: 512
+      layers: 1
+  working_memory:
+    attention_heads: 8
+    capacity: 1000
+    head_dim: 64
+performance_tuning:
+  latency:
+    budget_allocation:
+      affect_detection: 5
+      expert_processing: 100
+      generation: 15
+      retrieval: 20
+      routing: 10
+    optimizations:
+      async_processing: false
+      batching: true
+      cache_enabled: true
+      cache_size: 1000
+    target_latency_ms: 200
+  memory:
+    cpu_offloading: false
+    gc_frequency: batch
+    gradient_checkpointing: true
+    mixed_precision: true
+    target_memory_gb: 4
+  scalability:
+    auto_scaling: false
+    max_batch_size: 16
+    max_concurrent_requests: 4
+  throughput:
+    batch_processing: true
+    parallel_experts: true
+    target_qps: 10
+routing:
+  experts:
+    affect:
+      activation_threshold: 0.3
+      affect_state:
+        arousal:
+          precision: 0.01
+        dominance:
+          precision: 0.01
+        valence:
+          precision: 0.01
+      capacity_weight: 0.8
+      description: Emotional state detection and social cue processing
+      domain: affect_processing
+      max_inference_time: 12.0
+      name: Affect Expert
+      performance_weight: 0.6
+      specializations:
+      - emotion_recognition
+      - sentiment_analysis
+      - social_cue_processing
+      - affect_modulation
+    language:
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      description: Text understanding, generation, and reasoning
+      domain: text_processing
+      max_inference_time: 30.0
+      name: Language Expert
+      performance_weight: 1.0
+      specializations:
+      - text_generation
+      - natural_language_understanding
+      - conversational_context
+    symbolic:
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      description: Structured reasoning, logic, and mathematics
+      domain: symbolic_processing
+      max_inference_time: 18.0
+      name: Symbolic Expert
+      performance_weight: 1.0
+      specializations:
+      - logical_reasoning
+      - mathematical_computation
+      - structured_data_processing
+      - planning_and_problem_solving
+    vision:
+      activation_threshold: 0.5
+      capacity_weight: 1.0
+      description: Visual scene understanding and multimodal processing
+      domain: visual_processing
+      max_inference_time: 60.0
+      name: Vision Expert
+      performance:
+        batch_size: 8
+        max_inference_time_ms: 60
+      performance_weight: 1.0
+      specializations:
+      - image_understanding
+      - visual_scene_analysis
+      - image_to_text_tasks
+      - multimodal_alignment
+  gating:
+    dropout_rate: 0.1
+    importance_loss_coef: 0.01
+    method: top_k
+    noise_std: 0.1
+  load_balancing:
+    balance_temperature: 1.0
+    enabled: true
+    method: variance
+    target_usage: 0.25
+  load_balancing_coef: 0.01
+  n_experts: 4
+  router_type: multi_expert
+  spike_threshold: 0.7
+  target_spike_rate: 0.1
+  temperature: 0.1
+  top_k: 2
+  utilization_tracking:
+    decay_rate: 0.95
+    enabled: true
+    window_size: 1000
+training:
+  early_stopping:
+    enabled: true
+    metric: eval_loss
+    min_delta: 0.001
+    patience: 3
+  multi_task:
+    affect_loss_weight: 0.2
+    language_loss_weight: 0.1
+    router_loss_weight: 0.4
+    stdp_loss_weight: 0.3
+  optimization:
+    adam_beta1: 0.9
+    adam_beta2: 0.999
+    adam_epsilon: 1e-8
+    learning_rate: 5e-5
+    optimizer: adamw
+    weight_decay: 0.01
+  regularization:
+    dropout_rate: 0.1
+    label_smoothing: 0.1
+    max_grad_norm: 1.0
+  scheduler:
+    max_steps: 100000
+    type: cosine
+    warmup_steps: 1000
+  synthetic_tasks:
+    domains:
+    - math
+    - creative
+    - technical
+    - emotional
+    - visual
+    enabled: true
+    n_samples: 10000
+    task_types:
+      creative:
+      - storytelling
+      - poetry
+      - brainstorming
+      emotional:
+      - counseling
+      - sentiment
+      - empathy
+      math:
+      - arithmetic
+      - algebra
+      - geometry
+      technical:
+      - programming
+      - explanation
+      - debugging
+      visual:
+      - description
+      - analysis
+      - reasoning
+  training_loop:
+    batch_size: 16
+    eval_steps: 1000
+    gradient_accumulation_steps: 1
+    logging_steps: 100
+    max_epochs: 10
+    save_steps: 1000
