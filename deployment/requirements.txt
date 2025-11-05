@@ -1,0 +1,92 @@
+# Production Serving Infrastructure Requirements
+
+# FastAPI and ASGI Server
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+gunicorn>=21.0.0
+
+# vLLM for LLM serving
+vllm>=0.2.0
+transformers>=4.30.0
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Model loading and optimization
+accelerate>=0.20.0
+safetensors>=0.3.0
+bitsandbytes>=0.41.0
+xformers>=0.0.20
+
+# Data validation and serialization
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# HTTP client for external calls
+httpx>=0.24.0
+aiohttp>=3.8.0
+
+# System monitoring and metrics
+prometheus_client>=0.17.0
+psutil>=5.9.0
+nvidia-ml-py>=12.535.0
+py3nvml>=0.2.7
+
+# OpenTelemetry for observability
+opentelemetry-api>=1.20.0
+opentelemetry-sdk>=1.20.0
+opentelemetry-exporter-prometheus>=1.12.0rc1
+opentelemetry-exporter-otlp>=1.20.0
+opentelemetry-instrumentation-fastapi>=0.41b0
+opentelemetry-instrumentation-httpx>=0.41b0
+opentelemetry-instrumentation-asyncio>=0.41b0
+opentelemetry-instrumentation-vllm>=0.1.0
+
+# Configuration management
+pyyaml>=6.0
+configparser>=5.3.0
+
+# Logging and debugging
+structlog>=23.0.0
+rich>=13.0.0
+
+# Testing and quality assurance
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-benchmark>=4.0.0
+
+# Development dependencies
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+isort>=5.12.0
+
+# Load balancing and routing
+haproxy>=2.7.0  # For load balancer config
+
+# Auto-scaling (for Kubernetes HPA)
+kubernetes>=27.2.0
+k9s>=0.27.0
+
+# Monitoring stack
+prometheus>=2.45.0
+grafana>=10.0.0
+jaeger>=1.46.0
+
+# Network and security
+certifi>=2023.7.22
+cryptography>=41.0.0
+
+# Optional: For model quantization and optimization
+auto-gptq>=0.4.0
+awq>=0.1.0
+
+# Production server dependencies
+nginx>=1.24.0  # For reverse proxy
+redis>=7.0.0   # For caching and session storage
+postgres>=15.0  # For metrics storage
+
+# Utility libraries
+typing-extensions>=4.7.0
+python-multipart>=0.0.6  # For file uploads
+python-json-logger>=2.0.0

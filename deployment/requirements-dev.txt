@@ -1,0 +1,94 @@
+# Development Requirements for Brain-AI Serving Infrastructure
+
+# Base serving requirements
+-r requirements.txt
+
+# Development and testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-benchmark>=4.0.0
+pytest-mock>=3.10.0
+pytest-timeout>=2.1.0
+
+# Code quality tools
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.5.0
+isort>=5.12.0
+pre-commit>=3.0.0
+
+# Jupyter for interactive development
+jupyter>=1.0.0
+jupyterlab>=3.6.0
+ipython>=8.0.0
+
+# Additional development tools
+ipdb>=0.13.0  # Enhanced debugger
+pudb>=2023.1  # Visual debugger
+bandit>=1.7.0  # Security linting
+safety>=2.3.0  # Dependency vulnerability checking
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+mkdocs-mermaid2-plugin>=1.0.0
+
+# Performance profiling
+memory-profiler>=0.61.0
+line-profiler>=4.0.0
+py-spy>=0.3.0
+
+# Additional HTTP testing
+httpx>=0.24.0
+requests>=2.31.0
+
+# Database development
+alembic>=1.11.0  # Database migrations
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Monitoring development
+locust>=2.14.0  # Load testing
+k6>=0.43.0      # Alternative load testing
+
+# IDE support
+python-lsp-server>=1.7.0  # Language Server Protocol
+pylsp-mypy>=1.7.0         # MyPy integration for LSP
+pylsp-black>=1.2.0        # Black integration for LSP
+
+# Git hooks
+pre-commit-hooks>=4.4.0
+
+# Environment management
+python-dotenv>=1.0.0
+
+# Data validation in development
+cerberus>=1.3.0  # Schema validation
+
+# File watching for development
+watchdog>=3.0.0  # File watching for hot reload
+
+# Version control
+GitPython>=3.1.0
+
+# Build and packaging tools
+build>=0.10.0
+twine>=4.0.0
+setuptools>=68.0.0
+wheel>=0.41.0
+
+# Linting and formatting
+pylint>=2.17.0
+pydocstyle>=6.3.0
+autopep8>=2.0.0
+pyflakes>=3.0.0
+
+# Testing utilities
+factory-boy>=3.3.0  # Test data generation
+faker>=19.0.0       # Fake data generation
+responses>=0.23.0   # HTTP request mocking
+
+# Debugging
+pdb-attach>=2.0.0  # Attach to running processes
+py-spy>=0.3.0      # Sampling profiler
