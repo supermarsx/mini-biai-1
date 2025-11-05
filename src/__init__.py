@@ -1,40 +1,46 @@
 """
-Mini-BIAI-1: Brain-Inspired Modular AI Framework
+mini-biai-1 - A Brain-Inspired Computational Model
 
-A comprehensive brain-inspired AI framework featuring neuromorphic computing,
-spiking neural networks, and advanced memory systems.
-
-Author: Mini-BIAI-1 Team
-License: MIT
-Version: 0.3.0
+mini-biai-1 is a comprehensive framework that combines spiking neural networks,
+hierarchical memory architecture, and transformer-based language processing
+for neuromorphic computing applications.
 """
 
-__version__ = "0.3.0"
-__author__ = "Mini-BIAI-1 Team"
-__license__ = "MIT"
-__description__ = "Brain-Inspired Modular AI Framework"
+__version__ = "0.1.0"
+__author__ = "mini-biai-1 Team"
+__email__ = "team@mini-biai-1.org"
 
-# Import main classes for easy access
-try:
-    from .coordinator import Coordinator
-    from .memory import MemorySystem
-    from .optimization import Optimizer
-except ImportError:
-    # Placeholder imports for development
-    pass
+# Import all major modules
+from . import coordinator
+from . import memory
+from . import language
+from . import interfaces
+from . import inference
+from . import training
+from . import utils
 
-# Package metadata
-PACKAGE_INFO = {
-    "version": __version__,
-    "author": __author__,
-    "license": __license__,
-    "description": __description__,
-}
+# Expose key classes
+from .coordinator import SpikingRouter
+from .memory import ShortTermMemory
+from .language import LinearTextProcessor
+from .inference import InferencePipeline, create_pipeline
+from .training import RoutingTrainer, SyntheticRoutingDataset
+from .utils import PerformanceProfiler
 
-def get_version():
-    """Get the current version of Mini-BIAI-1."""
-    return __version__
-
-def get_package_info():
-    """Get package metadata information."""
-    return PACKAGE_INFO
+__all__ = [
+    "coordinator",
+    "memory", 
+    "language",
+    "interfaces",
+    "inference",
+    "training",
+    "utils",
+    "SpikingRouter",
+    "ShortTermMemory",
+    "LinearTextProcessor",
+    "InferencePipeline",
+    "create_pipeline",
+    "RoutingTrainer",
+    "SyntheticRoutingDataset",
+    "PerformanceProfiler"
+]
