@@ -1,285 +1,547 @@
-# Meta-Learning Framework
+# Meta-Learning Framework Foundation
 
-A comprehensive framework for meta-learning including Model-Agnostic Meta-Learning (MAML), few-shot learning, continual learning, and neural architecture search.
+A comprehensive meta-learning framework for adaptive AI systems, providing state-of-the-art algorithms for rapid adaptation, continual learning, and intelligent optimization.
 
-## Overview
+## 🎯 Overview
 
-This module provides implementations of various meta-learning algorithms and techniques:
+This framework implements advanced meta-learning capabilities for Step 4 of the adaptive AI system, enabling the system to quickly learn from new tasks, maintain knowledge across sequential learning, and optimize performance automatically.
 
-- **MAML (Model-Agnostic Meta-Learning)**: Fast adaptation across tasks
-- **Few-Shot Learning**: Learning with limited examples using prototypical and relation networks
-- **Continual Learning**: Preventing catastrophic forgetting with EWC and progressive networks
-- **Neural Architecture Search**: Automated architecture design for meta-learning
-- **Adapters**: Parameter-efficient transfer learning with various adapter types
-- **Adaptive Optimization**: Meta-learning enhanced optimization with Bayesian hyperparameter tuning
+## 🚀 Key Features
 
-## Installation
+### Core Meta-Learning Algorithms
+- **Model-Agnostic Meta-Learning (MAML)** - Fast adaptation across tasks
+- **Few-Shot Learning** - Prototypical networks and relation networks
+- **Continual Learning** - Catastrophic forgetting prevention
+- **Neural Architecture Search** - Automatic architecture design
+- **Tool Usage Optimization** - Meta-learning for tool routing
+- **Adapter Architectures** - Parameter-efficient transfer learning
 
-```bash
-pip install -e .
+### Advanced Capabilities
+- **First-order and second-order MAML** gradients
+- **Bayesian hyperparameter optimization**
+- **Elastic Weight Consolidation (EWC)**
+- **Progressive Networks** for continual learning
+- **Multi-modal adapter support**
+- **Real-time adaptation** capabilities
+- **Memory-efficient implementations**
+
+## 📁 Module Structure
+
+```
+src/meta_learning/
+├── __init__.py              # Module initialization and exports
+├── maml.py                  # Model-Agnostic Meta-Learning
+├── few_shot.py              # Few-shot learning algorithms
+├── continual.py             # Continual learning strategies
+├── optimizer.py             # Adaptive optimization
+├── nas_integration.py       # Neural Architecture Search
+├── tool_optimization.py     # Tool usage meta-learning
+├── adapter.py               # Meta-learning adapters
+└── demo.py                  # Comprehensive demonstration
 ```
 
-## Core Components
+## 🛠️ Installation & Setup
 
-### 1. MAML (Model-Agnostic Meta-Learning)
-Fast adaptation across different tasks with gradient-based meta-learning.
+```python
+# Import the framework
+from src.meta_learning import (
+    MAML, PrototypicalNetwork, ContinualLearner,
+    AdaptiveOptimizer, ToolMetaLearner, AdapterModel
+)
+```
+
+## 📖 Core Components
+
+### 1. Model-Agnostic Meta-Learning (MAML)
+
+Fast adaptation to new tasks with minimal gradient steps.
+
+```python
+from src.meta_learning import MAMLFirstOrder, create_meta_batch
+
+# Initialize MAML
+model = nn.Sequential(nn.Linear(10, 64), nn.ReLU(), nn.Linear(64, 1))
+maml = MAMLFirstOrder(
+    model=model,
+    lr_inner=0.01,
+    lr_meta=0.001,
+    num_inner_steps=5
+)
+
+# Meta-training
+tasks = [generate_task() for _ in range(4)]
+meta_batch = create_meta_batch(tasks, batch_size=4)
+metrics = maml.meta_train_step(meta_batch)
+
+# Quick adaptation to new task
+adapted_weights = maml.adapt_to_task(support_x, support_y)
+predictions = maml._forward_with_weights(query_x, adapted_weights)
+```
+
+**Features:**
+- First-order and second-order gradient support
+- Multi-task MAML with adaptive weighting
+- First-order approximation (Reptile-style)
+- Memory-efficient implementations
+- Integration with existing expert systems
 
 ### 2. Few-Shot Learning
-- **Prototypical Networks**: Class prototype-based classification
-- **Relation Networks**: Learning to compare and classify
-- **N-way K-shot Learning**: Support/query shot paradigms
 
-### 3. Continual Learning
-- **EWC (Elastic Weight Consolidation)**: Fisher information based forgetting prevention
-- **Progressive Networks**: Lateral connections for knowledge retention
-- **Experience Replay**: Memory-based continual learning
-
-### 4. Neural Architecture Search
-- **Random Search**: Baseline architecture search
-- **Bayesian Optimization**: Efficient architecture search
-- **DARTS**: Differentiable architecture search
-- **Evolutionary Search**: Population-based optimization
-
-### 5. Adapter Architectures
-- **LoRA**: Low-rank adaptation
-- **Linear Adapters**: Simple linear transformation adapters
-- **Prefix Tuning**: Prepended context adapters
-- **BitFit**: Bias-only fine-tuning
-- **IA3**: Infusion adapters
-- **Compacter**: Compressed adapters
-
-### 6. Adaptive Optimization
-- **Meta-learning Enhanced Optimization**: Automatic learning rate scheduling
-- **Bayesian Hyperparameter Optimization**: Gaussian process based tuning
-- **Performance Trend Analysis**: Learning curve analysis
-
-## Usage Examples
-
-### Basic MAML Training
+Learn from minimal examples using state-of-the-art algorithms.
 
 ```python
-from meta_learning import MAML
+from src.meta_learning import FewShotLearner, PrototypicalNetwork
 
-# Initialize MAML with backbone model
-maml = MAML(model=your_model, lr_inner=0.01, lr_outer=0.001)
+# Create encoder network
+encoder = nn.Sequential(
+    nn.Conv2d(1, 32, 3), nn.ReLU(), nn.MaxPool2d(2),
+    nn.Conv2d(32, 64, 3), nn.ReLU(), nn.MaxPool2d(2),
+    nn.Flatten(), nn.Linear(64*5*5, 128)
+)
 
-# Meta-train on tasks
-maml.meta_train(tasks_train)
-
-# Fast adapt to new task
-adapted_model = maml.adapt(task_support, num_steps=5)
-```
-
-### Few-Shot Learning
-
-```python
-from meta_learning import PrototypicalNetwork
-
-# Create prototypical network
-proto_net = PrototypicalNetwork(
-    encoder=your_encoder,
-    distance_metric='euclidean'
+# Initialize few-shot learner
+learner = FewShotLearner(
+    algorithm='prototypical',
+    encoder=encoder
 )
 
 # Train on episodes
-proto_net.train_episodes(training_episodes)
-
-# Classify with support set
-predictions = proto_net.classify(
-    query_samples=query_data,
-    support_samples=support_data,
-    support_labels=support_labels
+metrics = learner.train_episode(
+    support_x, support_y, query_x, query_y
 )
+predictions = learner.predict(support_x, support_y, query_x)
 ```
 
-### Continual Learning
+**Supported Algorithms:**
+- **Prototypical Networks** - Distance-based classification
+- **Relation Networks** - Learnable relation functions
+- **Matching Networks** - Attention-based few-shot learning
+- **N-way K-shot** classification support
+- **Episode-based training** for robust learning
+
+### 3. Continual Learning
+
+Prevent catastrophic forgetting in lifelong learning scenarios.
 
 ```python
-from meta_learning import EWC, ProgressiveNetwork
+from src.meta_learning import ContinualLearner, EWC
 
-# EWC for forgetting prevention
-owa_learner = EWC(model=your_model, ewc_lambda=1000)
-owa_learner.learn_task(task1_data, task1_labels)
-
-# Add second task with EWC regularization
-owa_learner.learn_task(
-    task2_data, task2_labels,
-    previous_tasks=[(task1_data, task1_labels)]
+# Initialize continual learner
+model = nn.Sequential(nn.Linear(100, 64), nn.ReLU(), nn.Linear(64, 10))
+learner = ContinualLearner(
+    model=model,
+    strategy='ewc',
+    buffer_size=1000
 )
 
-# Progressive network for incremental learning
-progressive_net = ProgressiveNetwork(
-    base_model=your_model,
-    hidden_size=hidden_dim
-)
-progressive_net.add_new_task(task2_data, task2_labels)
+# Train on sequential tasks
+for task_id, task_data in enumerate(tasks):
+    results = learner.train_task(
+        task_data, task_id, num_epochs=10
+    )
+
+# Evaluate on all tasks
+all_results = learner.evaluate_all_tasks(test_data)
 ```
 
-### Neural Architecture Search
+**Strategies Available:**
+- **EWC (Elastic Weight Consolidation)** - Parameter regularization
+- **Progressive Networks** - Column-based expansion
+- **Experience Replay** - Memory buffer with prioritization
+- **Learning Without Forgetting** - Knowledge distillation
+- **Catastrophic forgetting prevention**
+
+### 4. Adaptive Optimization
+
+Meta-learning enhanced optimizers with automatic hyperparameter tuning.
 
 ```python
-from meta_learning import NeuralArchitectureSearch, DARTS
+from src.meta_learning import AdaptiveOptimizer, BayesianOptimizer
 
-# Random search
-nas_random = NeuralArchitectureSearch(
-    search_space=your_search_space,
-    strategy='random'
-)
-best_arch = nas_random.search(num_architectures=100)
-
-# DARTS
-darts_search = DARTS(
-    model_size=your_model_size,
-    num_operations=len(your_operations)
-)
-learned_arch = darts_search.search(
-    train_data=training_data,
-    val_data=validation_data
-)
-```
-
-### Parameter-Efficient Transfer Learning
-
-```python
-from meta_learning import LoRAAdapter, PrefixTuningAdapter
-
-# LoRA adaptation
-lora_adapter = LoRAAdapter(
-    model=your_model,
-    r=16,  # rank
-    lora_alpha=16,
-    lora_dropout=0.1
-)
-lora_adapter.add_adapter()
-
-# Prefix tuning for language models
-prefix_tuning = PrefixTuningAdapter(
-    model=your_language_model,
-    prefix_length=5,
-    hidden_size=model_hidden_size
-)
-prefix_tuning.add_prefix()
-```
-
-### Adaptive Optimization
-
-```python
-from meta_learning import AdaptiveOptimizer, BayesianOptimizer
-
-# Meta-learning enhanced optimization
-adaptive_opt = AdaptiveOptimizer(
-    model=your_model,
+# Initialize adaptive optimizer
+optimizer = AdaptiveOptimizer(
+    model=model,
     base_optimizer='adam',
-    meta_learning_enabled=True
+    use_meta_learning=True,
+    meta_learning_rate=0.001
 )
 
-# Bayesian hyperparameter optimization
-bayes_opt = BayesianOptimizer(
-    objective='validation_accuracy',
-    search_space=hyperparameter_space
+# Training with automatic adaptation
+for epoch in range(num_epochs):
+    for batch in dataloader:
+        optimizer.zero_grad()
+        loss = compute_loss(model, batch)
+        optimizer.step(loss.item())
+        
+# Get optimization statistics
+stats = optimizer.get_optimization_stats()
+```
+
+**Features:**
+- **Bayesian hyperparameter optimization**
+- **Adaptive learning rate scheduling**
+- **Meta-parameter learning**
+- **Performance trend analysis**
+- **Automatic convergence detection**
+
+### 5. Neural Architecture Search
+
+Automatic design of optimal neural architectures.
+
+```python
+from src.meta_learning import NeuralArchitectureSearch, create_nas_search_space
+
+# Create search space
+search_space = create_nas_search_space(
+    input_shape=(3, 32, 32),
+    num_classes=10,
+    max_layers=20
 )
-best_params = bayes_opt.optimize(
-    objective_function=your_objective,
-    num_trials=50
+
+# Initialize NAS
+nas = NeuralArchitectureSearch(
+    search_space_config=search_space,
+    algorithm='bayesian',  # 'random', 'bayesian', 'darts', 'evolutionary'
+    population_size=50
+)
+
+# Run architecture search
+best_arch, best_performance = nas.search_architecture(
+    evaluation_function=your_eval_function,
+    num_evaluations=100
 )
 ```
 
-## Advanced Features
+**Algorithms:**
+- **Random Search** - Baseline comparison
+- **Bayesian Optimization** - Efficient search space exploration
+- **DARTS** - Differentiable architecture search
+- **Evolutionary Search** - Population-based optimization
+- **Meta-learning evaluation** for faster convergence
 
-### Tool Usage Optimization
+### 6. Tool Usage Optimization
 
-The framework includes meta-learning for tool selection and optimization:
-
-```python
-from meta_learning import ToolMetaLearner
-
-tool_learner = ToolMetaLearner()
-
-# Learn optimal tool selection
-optimal_tool = tool_learner.select_tool(
-    task_description=your_task,
-    available_tools=available_tools,
-    task_complexity=complexity_level
-)
-```
-
-### Multi-Modal Meta-Learning
-
-Support for text, image, and audio modalities:
+Meta-learning for intelligent tool routing and usage optimization.
 
 ```python
-from meta_learning import MultiModalAdapter
+from src.meta_learning import ToolMetaLearner, ToolProfile, TaskProfile
 
-multimodal_adapter = MultiModalAdapter(
-    text_model=text_encoder,
-    image_model=vision_encoder,
-    audio_model=audio_encoder,
-    fusion_method='attention'
-)
-```
-
-## Configuration
-
-```python
-# Configuration example
-config = {
-    'maml': {
-        'lr_inner': 0.01,
-        'lr_outer': 0.001,
-        'num_inner_steps': 5
-    },
-    'ewc': {
-        'lambda': 1000,
-        ' fisher_scale': 1.0
-    },
-    'lora': {
-        'r': 16,
-        'alpha': 16,
-        'dropout': 0.1
-    }
+# Define available tools
+tools = {
+    'search_tool': ToolProfile(
+        tool_id='search_tool',
+        tool_type=ToolType.SEARCH,
+        cost_per_use=1.0,
+        reliability=0.9
+    ),
+    'analysis_tool': ToolProfile(
+        tool_id='analysis_tool',
+        tool_type=ToolType.ANALYSIS,
+        cost_per_use=2.0,
+        reliability=0.85
+    )
 }
+
+# Create task profile
+task = TaskProfile(
+    task_id='research_task',
+    task_type='research',
+    complexity=TaskComplexity.MODERATE
+)
+
+# Initialize meta-learner
+meta_learner = ToolMetaLearner(tools)
+
+# Optimize task execution
+plan = meta_learner.optimize_task_execution(task)
+# Learn from execution results
+learning_result = meta_learner.learn_from_execution(task, execution_results)
 ```
 
-## Performance Metrics
+**Capabilities:**
+- **Tool selection optimization**
+- **Sequential tool routing**
+- **Performance prediction**
+- **Cost-efficiency analysis**
+- **Adaptive exploration/exploitation**
 
-The framework provides comprehensive evaluation metrics:
+### 7. Meta-Learning Adapters
 
-- **Adaptation Speed**: How quickly models adapt to new tasks
-- **Transfer Accuracy**: Performance on unseen tasks
-- **Forgetting Rate**: Knowledge retention across tasks
-- **Parameter Efficiency**: Number of trainable parameters
-- **Computational Cost**: Training and inference efficiency
+Parameter-efficient adaptation for pre-trained models.
 
-## Benchmarks
+```python
+from src.meta_learning import AdapterModel, AdapterConfig, AdapterType
 
-Benchmarked on standard datasets:
-- **Omniglot**: Character recognition
-- **Mini-ImageNet**: Few-shot image classification
-- **CIFAR-100**: Multi-task continual learning
-- **GLUE**: Natural language understanding
-- **SuperGLUE**: Advanced language understanding
+# Create adapter configurations
+adapter_configs = [
+    AdapterConfig(
+        adapter_type=AdapterType.LINEAR,
+        input_dim=512,
+        hidden_dim=128
+    ),
+    AdapterConfig(
+        adapter_type=AdapterType.LORA,
+        input_dim=512,
+        lora_r=8,
+        lora_alpha=16
+    )
+]
 
-## Citation
+# Create adapter model
+adapter_model = AdapterModel(base_model, adapter_configs)
+
+# Training with adapters
+for batch in dataloader:
+    output = adapter_model(batch)
+    loss = compute_loss(output, target)
+    loss.backward()
+    optimizer.step()
+
+# Control adapter usage
+adapter_model.enable_adapters([AdapterType.LORA])
+adapter_model.disable_adapters([AdapterType.LINEAR])
+```
+
+**Adapter Types:**
+- **Linear Adapters** - Simple linear transformations
+- **LoRA** - Low-rank adaptation
+- **Prefix Tuning** - Learnable input prefixes
+- **BitFit** - Bias-only fine-tuning
+- **Compacter** - Hypercomplex adapters
+- **Multi-modal** - Cross-modal adaptation
+
+## 🎮 Quick Start Demo
+
+Run the comprehensive demonstration:
+
+```python
+from src.meta_learning.demo import run_meta_learning_demo
+
+# Run complete demonstration
+results = run_meta_learning_demo()
+```
+
+This demo showcases:
+- MAML for fast function adaptation
+- Few-shot learning for classification
+- Continual learning across tasks
+- Adaptive optimization with meta-learning
+- Neural Architecture Search
+- Tool usage optimization
+- Parameter-efficient adapters
+- Integrated system performance
+
+## 🔧 Advanced Usage
+
+### Multi-Modal Adaptation
+
+```python
+from src.meta_learning.adapter import MultiModalAdapter, LanguageAdapter, VisionAdapter
+
+# Create multi-modal model
+multimodal_config = AdapterConfig(
+    adapter_type=AdapterType.ADAPTER,
+    input_dim=768,
+    hidden_dim=384
+)
+
+multimodal_adapter = MultiModalAdapter(multimodal_config)
+
+# Language-specific adaptation
+language_adapter = LanguageAdapter(multimodal_config)
+
+# Vision-specific adaptation  
+vision_adapter = VisionAdapter(multimodal_config)
+```
+
+### Bayesian Hyperparameter Optimization
+
+```python
+from src.meta_learning.optimizer import BayesianOptimizer
+
+# Define parameter space
+parameter_space = {
+    'learning_rate': (1e-5, 1e-2),
+    'batch_size': (16, 128),
+    'weight_decay': (1e-6, 1e-3)
+}
+
+# Create optimizer
+optimizer = BayesianOptimizer(
+    parameter_space=parameter_space,
+    acquisition_function='ei'
+)
+
+# Run optimization
+best_params, best_score = optimizer.optimize(
+    objective_function=your_objective,
+    n_iterations=50
+)
+```
+
+### Custom NAS Evaluation
+
+```python
+def custom_architecture_evaluation(architecture):
+    """Custom architecture evaluation function."""
+    # Build model from architecture
+    model = build_model_from_architecture(architecture)
+    
+    # Train and evaluate
+    train_model(model, training_data)
+    accuracy = evaluate_model(model, validation_data)
+    
+    return accuracy
+
+# Use with NAS
+nas = NeuralArchitectureSearch(search_space, 'bayesian')
+best_arch, best_perf = nas.search_architecture(
+    custom_architecture_evaluation, 
+    num_evaluations=100
+)
+```
+
+## 📊 Performance Metrics
+
+The framework provides comprehensive metrics for evaluation:
+
+- **Adaptation Speed** - Time to reach target performance
+- **Sample Efficiency** - Performance with minimal data
+- **Parameter Efficiency** - Trainable parameters vs. total
+- **Continual Learning Success** - Forgetting prevention
+- **Tool Usage Optimization** - Success rate and efficiency
+- **Architecture Performance** - Found architecture quality
+
+## 🎯 Integration with Expert System
+
+The framework seamlessly integrates with the existing expert system:
+
+```python
+# Example integration
+from src.meta_learning import MAML, ToolMetaLearner
+from src.experts import LanguageExpert, VisionExpert
+
+# Create meta-learning enhanced experts
+language_expert = LanguageExpert()
+vision_expert = VisionExpert()
+
+# Add MAML for rapid adaptation
+maml = MAML(language_expert.model)
+language_expert.add_meta_learning(maml)
+
+# Add tool optimization
+tool_learner = ToolMetaLearner(tool_profiles)
+language_expert.add_tool_optimization(tool_learner)
+
+# Use enhanced experts
+result = language_expert.process_task(user_input)
+```
+
+## 🔬 Research Extensions
+
+### Adding Custom Algorithms
+
+```python
+from src.meta_learning import BaseMetaLearner
+
+class CustomMetaLearner(BaseMetaLearner):
+    def __init__(self, model, **kwargs):
+        super().__init__(model, **kwargs)
+        
+    def meta_train_step(self, tasks):
+        # Implement custom meta-learning algorithm
+        pass
+        
+    def adapt_to_task(self, support_data):
+        # Implement custom adaptation mechanism
+        pass
+```
+
+### Custom Adapter Architectures
+
+```python
+from src.meta_learning.adapter import BaseAdapter, AdapterConfig
+
+class CustomAdapter(BaseAdapter):
+    def __init__(self, config):
+        super().__init__(config)
+        # Implement custom adapter architecture
+        
+    def forward(self, x):
+        # Custom forward pass logic
+        pass
+```
+
+## 🚀 Production Deployment
+
+The framework is designed for production use with:
+
+- **Memory-efficient implementations**
+- **Distributed training support**
+- **Real-time adaptation capabilities**
+- **Comprehensive error handling**
+- **Performance monitoring**
+- **Scalable architecture**
+
+## 📈 Benchmarking
+
+Run comprehensive benchmarks:
+
+```python
+from src.meta_learning import benchmark_nas_algorithms, create_tool_optimization_benchmark
+
+# Benchmark NAS algorithms
+nas_results = benchmark_nas_algorithms(search_space, eval_function, 50)
+
+# Benchmark tool optimization
+tool_results = create_tool_optimization_benchmark(tools, tasks, 100)
+```
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+1. **CUDA Out of Memory**
+   - Use gradient accumulation
+   - Reduce batch sizes
+   - Enable memory-efficient attention
+
+2. **Slow Convergence**
+   - Adjust learning rates
+   - Use Bayesian optimization
+   - Enable meta-learning adaptation
+
+3. **Adapter Performance Issues**
+   - Check parameter initialization
+   - Verify adapter compatibility
+   - Monitor gradient flow
+
+## 📝 Citation
 
 If you use this framework in your research, please cite:
 
 ```bibtex
-@software{meta_learning_framework,
-  title={Meta-Learning Framework: MAML, Few-Shot Learning, and Continual Learning},
-  author={MiniMax Agent},
+@software{meta_learning_framework_2025,
+  title={Meta-Learning Framework Foundation},
+  author={AI System},
   year={2025},
-  url={https://github.com/supermarsx/mini-biai-1}
+  version={1.0.0}
 }
 ```
 
-## License
+## 🤝 Contributing
 
-MIT License - see LICENSE file for details.
+Contributions are welcome! Please see our contributing guidelines for:
+- Adding new algorithms
+- Improving performance
+- Bug fixes
+- Documentation improvements
 
-## Contributing
+## 📄 License
 
-Contributions are welcome! Please see CONTRIBUTING.md for guidelines.
+This framework is part of the adaptive AI system and follows the same licensing terms.
 
-## Contact
+---
 
-For questions and support, please open an issue on GitHub.
+**Built for Step 4: Meta-Learning Framework Foundation**
+*Enabling rapid adaptation and intelligent optimization for next-generation AI systems*
