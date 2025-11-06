@@ -312,7 +312,7 @@ class TestCommandOptimizer:
     
     def test_optimize_find_command(self, command_optimizer):
         """Test optimization of find commands"""
-        command = "find . -name '*.txt' -exec grep pattern {} \;"
+        command = "find . -name '*.txt' -exec grep pattern {} \\;"
         
         optimization = command_optimizer.optimize_find_command(command)
         
@@ -346,7 +346,7 @@ class TestCommandOptimizer:
         """Test batch optimization of multiple commands"""
         commands = [
             "cat file.txt | grep pattern",
-            "find . -name '*.log' -exec rm {} \;",
+            "find . -name '*.log' -exec rm {} \\;",
             "ls -la | head -10"
         ]
         
