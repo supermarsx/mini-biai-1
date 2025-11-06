@@ -1,297 +1,351 @@
-"""
-Edge Deployment Optimization Module
-
-This module provides comprehensive optimization capabilities for deploying machine learning
-models on resource-constrained edge devices including mobile and embedded systems.
-
-
-Key Features:
-- INT8 and FP16 quantization with calibration
-- ONNX and TensorRT optimization
-- WebAssembly deployment for browsers
-- Progressive model loading
-- Hardware acceleration (NNAPI, CoreML, Metal)
-- Battery and power consumption optimization
-- Memory-efficient inference
-- Real-time performance on edge devices
-
-Platforms Supported:
-- iOS (CoreML, Metal)
-- Android (NNAPI, TensorFlow Lite)
-- Embedded Linux (TensorRT, ONNX)
-- Web (WebAssembly)
-
-
-Author: MiniMax AI
-Version: 1.0.0
-"""
-
-
+from typing import Dict, List, Optional, Union, Any
+import os
+import sys
 import logging
-from typing import Optional, Dict, Any, List, Union
-from dataclasses import dataclass
-from enum import Enum
+import warnings
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
+# Enable all optimizations by default
+__all__ = [
+    'ModelQuantizer',
+    'EdgeOptimizer', 
+    'EdgeAccelerator',
+    'ONNXExporter',
+    'TensorRTOptimizer',
+    'WebAssemblyDeployer',
+    'ProgressiveLoader',
+    'BatteryOptimizer',
+    'EdgeOptimizationDemo',
+    'get_edge_optimization_config',
+    'detect_edge_device',
+    'optimize_for_platform',
+    'benchmark_edge_performance'
+]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-
-class EdgePlatform(Enum):
-    """"Supported edge platforms."""
-    IOS = "ios"
-    ANDROID = "android"
-    LINUX_EMBEDDED = "linux_embedded"
-    WEB_WASM = "web_wasm"
-    WINDOWS_IOT = "windows_iot"
-    RASPBERRY_PI = "raspberry_pi"
-
-
-
-class QuantizationType(Enum):
-    """Quantization types for edge deployment."""
-    INT8 = "int8"
-    FP16 = "fp16"
-    DYNAMIC = "dynamic"
-    POST_TRAINING = "post_training"
-
-
-
-class AccelerationBackend(Enum):
-    """Hardware acceleration backends."""
-    COREML = "coreml"
-    NNAPI = "nnapi"
-    METAL = "metal"
-    TENSORRT = "tensorrt"
-    OPENCL = "opencl"
-    CUDA = "cuda"
-
-
-
-@dataclass
-class EdgeDevice:
-    """Edge device specifications."""
-    platform: EdgePlatform
-    name: str
-    cpu: str
-    gpu: Optional[str] = None
-    memory_gb: float = 2.0
-    storage_gb: float = 16.0
-    max_power_watts: float = 5.0
-    supported_backends: List[AccelerationBackend] = None
-    constraints: Dict[str, Any] = None
-
-    def __post_init__(self):
-        if self.supported_backends is None:
-            self.supported_backends = []
-        if self.constraints is None:
-            self.constraints = {}
-
-
-
-@dataclass
-class OptimizationConfig:
-    """Configuration for edge optimization."""
-    quantization_type: Optional[QuantizationType] = None
-    target_latency_ms: Optional[float] = None
-    max_memory_mb: Optional[float] = None
-    target_accuracy: Optional[float] = None
-    battery_optimization: bool = True
-    enable_progressive_loading: bool = True
-    compression_ratio: Optional[float] = None
-    batch_size: int = 1
-    threads: Optional[int] = None
-
-
-
-# Initialize core components
+# Import all components
 try:
-    from .quantization import Quantizer
-    from .optimization import MobileOptimizer
-    from .onnx_export import ONNXExporter
-    from .tensorrt import TensorRTOptimizer
-    from .webassembly import WebAssemblyDeployer
-    from .progressive import ProgressiveLoader
-    from .accelerator import EdgeAccelerator
-    from .battery import BatteryOptimizer
-
-    __all__ = [
-        "Quantizer",
-        "MobileOptimizer", 
-        "ONNXExporter",
-        "TensorRTOptimizer",
-        "WebAssemblyDeployer",
-        "ProgressiveLoader",
-        "EdgeAccelerator",
-        "BatteryOptimizer",
-        "EdgePlatform",
-        "QuantizationType",
-        "AccelerationBackend",
-        "EdgeDevice",
-        "OptimizationConfig"
-    ]
-    
-    logger.info("Edge optimization module initialized successfully")
-
+    from .quantization import ModelQuantizer
 except ImportError as e:
-    logger.warning(f"Some edge optimization components failed to import: {e}")
-    __all__ = []
+    logger.warning(f"Could not import ModelQuantizer: {e}")
+    ModelQuantizer = None
+
+try:
+    from .optimization import EdgeOptimizer
+except ImportError as e:
+    logger.warning(f"Could not import EdgeOptimizer: {e}")
+    EdgeOptimizer = None
+
+try:
+    from .accelerator import EdgeAccelerator
+except ImportError as e:
+    logger.warning(f"Could not import EdgeAccelerator: {e}")
+    EdgeAccelerator = None
+
+try:
+    from .onnx_export import ONNXExporter
+except ImportError as e:
+    logger.warning(f"Could not import ONNXExporter: {e}")
+    ONNXExporter = None
+
+try:
+    from .tensorrt import TensorRTOptimizer
+except ImportError as e:
+    logger.warning(f"Could not import TensorRTOptimizer: {e}")
+    TensorRTOptimizer = None
+
+try:
+    from .webassembly import WebAssemblyDeployer
+except ImportError as e:
+    logger.warning(f"Could not import WebAssemblyDeployer: {e}")
+    WebAssemblyDeployer = None
+
+try:
+    from .progressive import ProgressiveLoader
+except ImportError as e:
+    logger.warning(f"Could not import ProgressiveLoader: {e}")
+    ProgressiveLoader = None
+
+try:
+    from .battery import BatteryOptimizer
+except ImportError as e:
+    logger.warning(f"Could not import BatteryOptimizer: {e}")
+    BatteryOptimizer = None
+
+try:
+    from .edge_optimization_demo import EdgeOptimizationDemo
+except ImportError as e:
+    logger.warning(f"Could not import EdgeOptimizationDemo: {e}")
+    EdgeOptimizationDemo = None
 
 
-
-def create_edge_deployer(device: EdgeDevice, config: OptimizationConfig) -> Dict[str, Any]:
+def get_edge_optimization_config() -> Dict[str, Any]:
     """
-    Factory function to create appropriate edge deployer based on device and configuration.
+    Get default configuration for edge optimization.
     
-    Args:
-        device: Target edge device specifications
-        config: Optimization configuration
-        
     Returns:
-        Dictionary containing appropriate deployer instances
+        Dict containing default optimization settings
     """
-    deployers = {}
-    
-    try:
-        # Always create quantizer
-        if config.quantization_type:
-            deployers['quantizer'] = Quantizer()
-        
-        # Create platform-specific optimizers
-        if device.platform == EdgePlatform.IOS:
-            deployers['optimizer'] = MobileOptimizer(backend=AccelerationBackend.COREML)
-            deployers['accelerator'] = EdgeAccelerator([AccelerationBackend.COREML, AccelerationBackend.METAL])
-        elif device.platform == EdgePlatform.ANDROID:
-            deployers['optimizer'] = MobileOptimizer(backend=AccelerationBackend.NNAPI)
-            deployers['accelerator'] = EdgeAccelerator([AccelerationBackend.NNAPI, AccelerationBackend.OPENCL])
-        elif device.platform == EdgePlatform.LINUX_EMBEDDED:
-            deployers['optimizer'] = MobileOptimizer(backend=AccelerationBackend.TENSORRT)
-            deployers['tensorrt'] = TensorRTOptimizer()
-        elif device.platform == EdgePlatform.WEB_WASM:
-            deployers['webassembly'] = WebAssemblyDeployer()
-        
-        # Always create common components
-        deployers['progressive'] = ProgressiveLoader()
-        deployers['battery'] = BatteryOptimizer()
-        
-        if config.quantization_type in [QuantizationType.INT8, QuantizationType.FP16]:
-            deployers['onnx'] = ONNXExporter()
-            
-    except Exception as e:
-        logger.error(f"Failed to create edge deployer: {e}")
-        raise
-    
-    return deployers
-
-
-def get_supported_devices() -> List[EdgeDevice]:
-    """
-    Get list of supported edge devices with pre-configured specifications.
-    
-    Returns:
-        List of EdgeDevice instances
-    """
-    return [
-        EdgeDevice(
-            platform=EdgePlatform.IOS,
-            name="iPhone 14 Pro",
-            cpu="Apple A16 Bionic",
-            gpu="Apple GPU",
-            memory_gb=6.0,
-            supported_backends=[AccelerationBackend.COREML, AccelerationBackend.METAL]
-        ),
-        EdgeDevice(
-            platform=EdgePlatform.ANDROID,
-            name="Samsung Galaxy S23",
-            cpu="Snapdragon 8 Gen 2",
-            gpu="Adreno 740",
-            memory_gb=8.0,
-            supported_backends=[AccelerationBackend.NNAPI, AccelerationBackend.OPENCL]
-        ),
-        EdgeDevice(
-            platform=EdgePlatform.LINUX_EMBEDDED,
-            name="NVIDIA Jetson Orin",
-            cpu="ARM Cortex-A78AE",
-            gpu="NVIDIA Ampere",
-            memory_gb=8.0,
-            supported_backends=[AccelerationBackend.TENSORRT, AccelerationBackend.CUDA]
-        ),
-        EdgeDevice(
-            platform=EdgePlatform.WEB_WASM,
-            name="Web Browser",
-            cpu="x86_64/ARM64",
-            memory_gb=4.0,
-            supported_backends=[]
-        ),
-        EdgeDevice(
-            platform=EdgePlatform.RASPBERRY_PI,
-            name="Raspberry Pi 4",
-            cpu="ARM Cortex-A72",
-            memory_gb=4.0,
-            supported_backends=[AccelerationBackend.OPENCL]
-        )
-    ]
-
-
-
-def benchmark_edge_deployment(model_path: str, device: EdgeDevice, 
-                            config: OptimizationConfig) -> Dict[str, Any]:
-    """
-    Benchmark edge deployment performance.
-    
-    Args:
-        model_path: Path to the model
-        device: Target device
-        config: Optimization configuration
-        
-    Returns:
-        Benchmark results dictionary
-    """
-    logger.info(f"Starting edge deployment benchmark for {device.name}")
-    
-    # Create deployers
-    deployers = create_edge_deployer(device, config)
-    
-    # Run benchmark
-    results = {
-        "device": device.name,
-        "platform": device.platform.value,
-        "config": {
-            "quantization": config.quantization_type.value if config.quantization_type else None,
-            "target_latency": config.target_latency_ms,
-            "max_memory": config.max_memory_mb
+    return {
+        'quantization': {
+            'enabled': True,
+            'precision': 'int8',
+            'calibration_samples': 100,
+            'preserve_accuracy': True
         },
-        "results": {}
+        'optimization': {
+            'pruning': {
+                'enabled': True,
+                'method': 'magnitude',
+                'sparsity': 0.3
+            },
+            'memory': {
+                'enabled': True,
+                'optimize_batch_size': True,
+                'gradient_checkpointing': False
+            }
+        },
+        'acceleration': {
+            'hardware_acceleration': True,
+            'preferred_backends': ['tensorrt', 'nnapi', 'coreml', 'openvino'],
+            'fallback_to_cpu': True
+        },
+        'power': {
+            'battery_aware': True,
+            'thermal_throttling': True,
+            'performance_scaling': True
+        },
+        'progressive': {
+            'enabled': True,
+            'chunk_size': 'auto',
+            'priority_based': True
+        }
+    }
+
+
+def detect_edge_device() -> Dict[str, Any]:
+    """
+    Detect edge device capabilities and constraints.
+    
+    Returns:
+        Dict containing device information
+    """
+    import platform
+    import psutil
+    
+    device_info = {
+        'platform': platform.system(),
+        'architecture': platform.machine(),
+        'processor': platform.processor(),
+        'python_version': platform.python_version()
     }
     
-    # Benchmark quantization
-    if 'quantizer' in deployers:
-        try:
-            quant_result = deployers['quantizer'].quantize_model(model_path, config.quantization_type)
-            results["results"]["quantization"] = {
-                "size_reduction": quant_result.get("size_reduction", 0),
-                "accuracy_impact": quant_result.get("accuracy_impact", 0),
-                "speed_improvement": quant_result.get("speed_improvement", 0)
-            }
-        except Exception as e:
-            results["results"]["quantization"] = {"error": str(e)}
+    # System resources
+    try:
+        device_info.update({
+            'cpu_count': psutil.cpu_count(),
+            'memory_total': psutil.virtual_memory().total,
+            'memory_available': psutil.virtual_memory().available,
+            'disk_usage': psutil.disk_usage('/').percent
+        })
+    except:
+        logger.warning("Could not detect system resources")
     
-    # Benchmark hardware acceleration
-    if 'accelerator' in deployers:
-        try:
-            accel_result = deployers['accelerator'].benchmark_acceleration(model_path, device)
-            results["results"]["acceleration"] = accel_result
-        except Exception as e:
-            results["results"]["acceleration"] = {"error": str(e)}
+    # Platform-specific detection
+    if platform.system() == 'Linux':
+        # Check for ARM architecture
+        if 'arm' in platform.machine().lower() or 'aarch64' in platform.machine().lower():
+            device_info['edge_type'] = 'mobile_arm'
+        else:
+            device_info['edge_type'] = 'linux_x86'
+    elif platform.system() == 'Darwin':
+        device_info['edge_type'] = 'apple_silicon' if 'arm' in platform.machine().lower() else 'macos_x86'
+    elif platform.system() == 'Windows':
+        device_info['edge_type'] = 'windows_x86'
+    else:
+        device_info['edge_type'] = 'unknown'
     
-    # Benchmark battery optimization
-    if 'battery' in deployers:
-        try:
-            battery_result = deployers['battery'].optimize_for_battery(model_path)
-            results["results"]["battery"] = battery_result
-        except Exception as e:
-            results["results"]["battery"] = {"error": str(e)}
+    # Hardware acceleration capabilities
+    device_info['acceleration_backends'] = []
     
-    logger.info("Edge deployment benchmark completed")
+    # Check for TensorRT
+    try:
+        import tensorrt
+        device_info['acceleration_backends'].append('tensorrt')
+    except ImportError:
+        pass
+    
+    # Check for ONNX Runtime
+    try:
+        import onnxruntime as ort
+        device_info['acceleration_backends'].append('onnxruntime')
+        # Check available providers
+        if 'CUDAExecutionProvider' in ort.get_available_providers():
+            device_info['acceleration_backends'].append('cuda')
+        if 'TensorrtExecutionProvider' in ort.get_available_providers():
+            device_info['acceleration_backends'].append('tensorrt_ort')
+    except ImportError:
+        pass
+    
+    return device_info
+
+
+def optimize_for_platform(model: Any, platform: str = 'auto') -> Any:
+    """
+    Apply platform-specific optimizations to a model.
+    
+    Args:
+        model: Model to optimize
+        platform: Target platform ('auto', 'mobile', 'web', 'embedded')
+    
+    Returns:
+        Optimized model
+    """
+    if platform == 'auto':
+        device_info = detect_edge_device()
+        platform = device_info.get('edge_type', 'unknown')
+    
+    logger.info(f"Optimizing model for platform: {platform}")
+    
+    # Apply quantization
+    if ModelQuantizer is not None:
+        quantizer = ModelQuantizer()
+        if platform in ['mobile_arm', 'apple_silicon']:
+            model = quantizer.quantize_model(model, precision='int8')
+    
+    # Apply optimization
+    if EdgeOptimizer is not None:
+        optimizer = EdgeOptimizer()
+        if platform in ['mobile_arm', 'embedded']:
+            model = optimizer.prune_model(model, sparsity=0.2)
+    
+    # Apply acceleration
+    if EdgeAccelerator is not None:
+        accelerator = EdgeAccelerator()
+        if platform == 'web':
+            # Web-specific optimizations
+            pass
+        elif platform in ['mobile_arm', 'apple_silicon']:
+            # Mobile-specific acceleration
+            pass
+    
+    return model
+
+
+def benchmark_edge_performance(model: Any, test_input: Any = None) -> Dict[str, float]:
+    """
+    Benchmark model performance on edge devices.
+    
+    Args:
+        model: Model to benchmark
+        test_input: Test input data (optional)
+    
+    Returns:
+        Dict containing performance metrics
+    """
+    import time
+    import numpy as np
+    
+    logger.info("Starting edge performance benchmark...")
+    
+    # Device detection
+    device_info = detect_edge_device()
+    logger.info(f"Device: {device_info['edge_type']}")
+    logger.info(f"Available backends: {device_info['acceleration_backends']}")
+    
+    # Generate test input if not provided
+    if test_input is None:
+        if hasattr(model, 'input_shape'):
+            shape = model.input_shape
+        else:
+            shape = (1, 3, 224, 224)  # Default for vision models
+        test_input = np.random.randn(*shape).astype(np.float32)
+    
+    results = {}
+    
+    # CPU baseline
+    try:
+        start_time = time.time()
+        for _ in range(10):
+            _ = model(test_input)
+        cpu_time = (time.time() - start_time) / 10
+        results['cpu_latency_ms'] = cpu_time * 1000
+    except Exception as e:
+        logger.warning(f"CPU benchmark failed: {e}")
+        results['cpu_latency_ms'] = None
+    
+    # Hardware acceleration benchmarks
+    if 'tensorrt' in device_info['acceleration_backends'] and TensorRTOptimizer is not None:
+        try:
+            trt_optimizer = TensorRTOptimizer()
+            trt_model = trt_optimizer.optimize_model(model)
+            
+            start_time = time.time()
+            for _ in range(10):
+                _ = trt_model(test_input)
+            trt_time = (time.time() - start_time) / 10
+            results['tensorrt_latency_ms'] = trt_time * 1000
+            results['speedup_vs_cpu'] = results['cpu_latency_ms'] / results['tensorrt_latency_ms'] if results['cpu_latency_ms'] else None
+        except Exception as e:
+            logger.warning(f"TensorRT benchmark failed: {e}")
+    
+    # Memory usage
+    try:
+        import psutil
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        results['memory_usage_mb'] = memory_info.rss / 1024 / 1024
+    except:
+        results['memory_usage_mb'] = None
+    
     return results
+
+
+# Version information
+__version__ = "1.0.0"
+__author__ = "Edge Optimization Team"
+__email__ = "edge-optimization@company.com"
+__description__ = "Comprehensive edge deployment optimization library"
+
+# Feature flags
+FEATURES = {
+    'quantization': ModelQuantizer is not None,
+    'optimization': EdgeOptimizer is not None,
+    'acceleration': EdgeAccelerator is not None,
+    'onnx_export': ONNXExporter is not None,
+    'tensorrt': TensorRTOptimizer is not None,
+    'webassembly': WebAssemblyDeployer is not None,
+    'progressive': ProgressiveLoader is not None,
+    'battery': BatteryOptimizer is not None,
+    'demo': EdgeOptimizationDemo is not None
+}
+
+
+def print_feature_status():
+    """Print status of all edge optimization features."""
+    print("\n=== Edge Optimization Features Status ===")
+    for feature, available in FEATURES.items():
+        status = "✓" if available else "✗"
+        print(f"{status} {feature.replace('_', ' ').title()}")
+    print("\n" + "="*45)
+
+
+if __name__ == "__main__":
+    print_feature_status()
+    
+    # Run quick detection
+    device_info = detect_edge_device()
+    print(f"\nDetected Device: {device_info['edge_type']}")
+    print(f"Available Backends: {', '.join(device_info['acceleration_backends'])}")
+    
+    # Show configuration
+    config = get_edge_optimization_config()
+    print(f"\nDefault Configuration:")
+    for category, settings in config.items():
+        print(f"  {category}: {settings}")
