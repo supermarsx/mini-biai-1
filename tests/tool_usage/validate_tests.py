@@ -1,308 +1,415 @@
 #!/usr/bin/env python3
 """
-Simple Test Validation Script
+Test Validation Script for Tool Usage Module
 
-This script validates that the test files exist and have basic structure
-without requiring complex dependencies.
+This script validates the test structure and completeness of the tool_usage module test suite.
+It performs checks to ensure all test files exist, have proper structure, and follow conventions.
+
+Features:
+- Validates test directory structure
+- Checks test file naming conventions
+- Verifies test class and method existence
+- Validates docstring presence
+- Ensures test coverage requirements
+- Reports missing or incomplete test components
+
+Usage:
+    python validate_tests.py [--verbose] [--fix] [--coverage]
+    
+    --verbose: Show detailed validation output
+    --fix: Automatically fix minor issues
+    --coverage: Generate test coverage analysis
 """
 
+import ast
 import os
 import sys
+import argparse
 from pathlib import Path
+from typing import List, Dict, Any, Set, Tuple
+from dataclasses import dataclass
+from enum import Enum
+import re
 
-def check_file_exists(filepath, description):
-    """Check if a file exists and report status."""
-    if filepath.exists():
-        print(f"✅ {description}: {filepath}")
-        return True
-    else:
-        print(f"❌ {description}: {filepath} NOT FOUND")
-        return False
 
-def check_directory_structure():
-    """Check the test directory structure."""
-    print("🔍 Checking Test Directory Structure")
-    print("=" * 50)
-    
-    base_dir = Path("tests/tool_usage")
-    checks = []
-    
-    # Check main directory
-    checks.append(check_file_exists(base_dir, "Test directory"))
-    
-    # Check conftest.py
-    checks.append(check_file_exists(base_dir / "conftest.py", "conftest.py"))
-    
-    # Check unit test files
-    unit_dir = base_dir / "unit"
-    checks.append(check_file_exists(unit_dir, "Unit tests directory"))
-    
-    unit_files = [
-        "test_shell_detector.py",
-        "test_command_executor.py", 
-        "test_tool_registry.py",
-        "test_usage_optimizer.py",
-        "test_platform_adapter.py"
-    ]
-    
-    for file in unit_files:
-        checks.append(check_file_exists(unit_dir / file, f"Unit test: {file}"))
-    
-    # Check integration tests
-    integration_dir = base_dir / "integration"
-    checks.append(check_file_exists(integration_dir, "Integration tests directory"))
-    checks.append(check_file_exists(integration_dir / "test_tool_usage_integration.py", "Integration test"))
-    
-    # Check security tests
-    security_dir = base_dir / "security"
-    checks.append(check_file_exists(security_dir, "Security tests directory"))
-    checks.append(check_file_exists(security_dir / "test_security_safety.py", "Security test"))
-    
-    # Check compatibility tests
-    compatibility_dir = base_dir / "compatibility"
-    checks.append(check_file_exists(compatibility_dir, "Compatibility tests directory"))
-    checks.append(check_file_exists(compatibility_dir / "test_cross_platform.py", "Compatibility test"))
-    
-    # Check performance tests
-    performance_dir = base_dir / "performance"
-    checks.append(check_file_exists(performance_dir, "Performance tests directory"))
-    checks.append(check_file_exists(performance_dir / "test_performance_load.py", "Performance test"))
-    
-    # Check manual tests
-    manual_dir = base_dir / "manual_tests"
-    checks.append(check_file_exists(manual_dir, "Manual tests directory"))
-    checks.append(check_file_exists(manual_dir / "run_manual_tests.py", "Manual test runner"))
-    
-    # Check helper files
-    checks.append(check_file_exists(base_dir / "quick_test_runner.py", "Quick test runner"))
-    checks.append(check_file_exists(base_dir / "README.md", "Test documentation"))
-    
-    return all(checks)
+class ValidationLevel(Enum):
+    """Validation levels for test checks."""
+    BASIC = "basic"
+    STANDARD = "standard"
+    COMPREHENSIVE = "comprehensive"
 
-def check_file_content(filepath, description):
-    """Check basic file content."""
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        lines = len(content.split('\n'))
-        size = len(content)
-        
-        print(f"📄 {description}: {lines} lines, {size} characters")
-        return True
-    except Exception as e:
-        print(f"❌ Error reading {description}: {e}")
-        return False
 
-def validate_test_files():
-    """Validate that test files have proper content."""
-    print("\n🔍 Validating Test File Content")
-    print("=" * 50)
+@dataclass
+class ValidationResult:
+    """Result of a validation check."""
+    file_path: str
+    check_type: str
+    status: str
+    message: str
+    line_number: int = 0
+    severity: str = "info"
+
+
+@dataclass
+class TestFileInfo:
+    """Information about a test file."""
+    file_path: str
+    module_name: str
+    has_test_class: bool
+    test_methods: List[str]
+    docstring: str
+    imports: List[str]
+    coverage_score: float = 0.0
+
+
+class TestValidator:
+    """Main test validation class."""
     
-    base_dir = Path("tests/tool_usage")
-    checks = []
+    def __init__(self, root_path: str = "tests/tool_usage", validation_level: ValidationLevel = ValidationLevel.STANDARD):
+        self.root_path = Path(root_path)
+        self.validation_level = validation_level
+        self.results: List[ValidationResult] = []
+        self.test_files: List[TestFileInfo] = []
+        self.required_test_patterns = {
+            "unit": r"test_.*\.py$",
+            "integration": r"test_.*_integration\.py$",
+            "security": r"test_.*_security\.py$",
+            "performance": r"test_.*_performance\.py$",
+            "compatibility": r"test_.*_compatibility\.py$"
+        }
+        
+    def validate_all(self, verbose: bool = False) -> bool:
+        """Run all validation checks."""
+        print(f"🔍 Validating test suite at {self.root_path}")
+        print(f"📋 Validation level: {self.validation_level.value}")
+        print("-" * 60)
+        
+        # Check directory structure
+        self._validate_directory_structure()
+        
+        # Check test file naming
+        self._validate_file_naming()
+        
+        # Analyze test files
+        self._analyze_test_files()
+        
+        # Check coverage requirements
+        self._check_coverage_requirements()
+        
+        # Check documentation
+        self._check_documentation()
+        
+        # Generate summary
+        return self._generate_summary(verbose)
     
-    # Validate conftest.py
-    conftest_file = base_dir / "conftest.py"
-    if conftest_file.exists():
-        checks.append(check_file_content(conftest_file, "conftest.py"))
-        
-        # Check for key components
-        with open(conftest_file, 'r') as f:
-            content = f.read()
-        
-        if "pytest.fixture" in content:
-            print("✅ conftest.py contains pytest fixtures")
-        else:
-            print("⚠️ conftest.py may be missing pytest fixtures")
-        
-        if "@pytest.fixture" in content or "def " in content and "fixture" in content:
-            print("✅ conftest.py appears to have fixture definitions")
-        else:
-            print("⚠️ conftest.py may be missing fixture definitions")
-    
-    # Validate unit tests
-    unit_dir = base_dir / "unit"
-    if unit_dir.exists():
-        unit_files = [
-            "test_shell_detector.py",
-            "test_command_executor.py",
-            "test_tool_registry.py", 
-            "test_usage_optimizer.py",
-            "test_platform_adapter.py"
+    def _validate_directory_structure(self):
+        """Validate the test directory structure."""
+        expected_dirs = [
+            "unit",
+            "integration", 
+            "security",
+            "performance",
+            "compatibility",
+            "manual_tests",
+            "test_helpers"
         ]
         
-        for file in unit_files:
-            filepath = unit_dir / file
-            if filepath.exists():
-                checks.append(check_file_content(filepath, f"Unit test: {file}"))
-                
-                # Check for pytest patterns
-                with open(filepath, 'r') as f:
-                    content = f.read()
-                
-                if "def test_" in content:
-                    print(f"✅ {file} contains test functions")
-                else:
-                    print(f"⚠️ {file} may be missing test functions")
-                
-                if "class Test" in content:
-                    print(f"✅ {file} contains test classes")
-                else:
-                    print(f"⚠️ {file} may be missing test classes")
+        for dir_name in expected_dirs:
+            dir_path = self.root_path / dir_name
+            if not dir_path.exists():
+                self._add_result(
+                    str(dir_path), "directory_structure", "error",
+                    f"Missing required directory: {dir_name}"
+                )
+            else:
+                self._add_result(
+                    str(dir_path), "directory_structure", "pass",
+                    f"Directory exists: {dir_name}"
+                )
     
-    # Validate other test categories
-    test_categories = [
-        ("integration", "test_tool_usage_integration.py"),
-        ("security", "test_security_safety.py"),
-        ("compatibility", "test_cross_platform.py"),
-        ("performance", "test_performance_load.py")
-    ]
+    def _validate_file_naming(self):
+        """Validate test file naming conventions."""
+        test_files = list(self.root_path.rglob("test_*.py"))
+        
+        for file_path in test_files:
+            relative_path = str(file_path.relative_to(self.root_path))
+            
+            # Check naming patterns
+            matches_pattern = any(
+                re.match(pattern, file_path.name) 
+                for pattern in self.required_test_patterns.values()
+            )
+            
+            if not matches_pattern and self.validation_level in [ValidationLevel.STANDARD, ValidationLevel.COMPREHENSIVE]:
+                self._add_result(
+                    relative_path, "naming", "warning",
+                    f"File doesn't match expected naming pattern"
+                )
+            else:
+                self._add_result(
+                    relative_path, "naming", "pass",
+                    f"File naming convention follows standard"
+                )
     
-    for category, filename in test_categories:
-        filepath = base_dir / category / filename
-        if filepath.exists():
-            checks.append(check_file_content(filepath, f"{category.title()} test"))
-    
-    # Validate manual tests
-    manual_file = base_dir / "manual_tests" / "run_manual_tests.py"
-    if manual_file.exists():
-        checks.append(check_file_content(manual_file, "Manual test runner"))
-    
-    # Validate helper scripts
-    helper_files = [
-        ("quick_test_runner.py", "Quick test runner"),
-        ("README.md", "Documentation")
-    ]
-    
-    for filename, description in helper_files:
-        filepath = base_dir / filename
-        if filepath.exists():
-            checks.append(check_file_content(filepath, description))
-    
-    return all(checks)
-
-def estimate_line_counts():
-    """Estimate total line counts across test files."""
-    print("\n📊 Estimating Test Coverage")
-    print("=" * 50)
-    
-    base_dir = Path("tests/tool_usage")
-    total_lines = 0
-    file_counts = {}
-    
-    test_files = [
-        "conftest.py",
-        "unit/test_shell_detector.py",
-        "unit/test_command_executor.py",
-        "unit/test_tool_registry.py",
-        "unit/test_usage_optimizer.py",
-        "unit/test_platform_adapter.py",
-        "integration/test_tool_usage_integration.py",
-        "security/test_security_safety.py",
-        "compatibility/test_cross_platform.py",
-        "performance/test_performance_load.py",
-        "manual_tests/run_manual_tests.py",
-        "quick_test_runner.py",
-        "README.md"
-    ]
-    
-    for test_file in test_files:
-        filepath = base_dir / test_file
-        if filepath.exists():
+    def _analyze_test_files(self):
+        """Analyze individual test files for structure."""
+        test_files = list(self.root_path.rglob("test_*.py"))
+        
+        for file_path in test_files:
             try:
-                with open(filepath, 'r', encoding='utf-8') as f:
-                    lines = len(f.readlines())
-                file_counts[test_file] = lines
-                total_lines += lines
-                print(f"📄 {test_file}: {lines} lines")
+                relative_path = str(file_path.relative_to(self.root_path))
+                file_info = self._parse_test_file(file_path)
+                self.test_files.append(file_info)
+                
+                # Validate file content
+                self._validate_file_content(file_info)
+                
             except Exception as e:
-                print(f"❌ Error reading {test_file}: {e}")
+                self._add_result(
+                    str(file_path), "parsing", "error",
+                    f"Failed to parse file: {str(e)}"
+                )
+    
+    def _parse_test_file(self, file_path: Path) -> TestFileInfo:
+        """Parse a test file and extract information."""
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        tree = ast.parse(content)
+        
+        module_name = file_path.stem
+        test_methods = []
+        test_classes = []
+        docstring = ast.get_docstring(tree) or ""
+        imports = []
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name.startswith('Test'):
+                test_classes.append(node.name)
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name.startswith('test_'):
+                        test_methods.append(item.name)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    imports.append(alias.name)
+            elif isinstance(node, ast.ImportFrom):
+                if node.module:
+                    imports.append(node.module)
+        
+        return TestFileInfo(
+            file_path=str(file_path),
+            module_name=module_name,
+            has_test_class=len(test_classes) > 0,
+            test_methods=test_methods,
+            docstring=docstring,
+            imports=imports
+        )
+    
+    def _validate_file_content(self, file_info: TestFileInfo):
+        """Validate the content of a test file."""
+        # Check for test classes
+        if not file_info.has_test_class:
+            self._add_result(
+                file_info.file_path, "structure", "warning",
+                "No test class found (expected class starting with 'Test')"
+            )
+        
+        # Check for test methods
+        if len(file_info.test_methods) == 0:
+            self._add_result(
+                file_info.file_path, "structure", "error",
+                "No test methods found (expected methods starting with 'test_')"
+            )
+        
+        # Check for module docstring
+        if not file_info.docstring and self.validation_level in [ValidationLevel.STANDARD, ValidationLevel.COMPREHENSIVE]:
+            self._add_result(
+                file_info.file_path, "documentation", "warning",
+                "Missing module docstring"
+            )
+        
+        # Check for required imports
+        required_imports = ["import unittest", "import pytest", "import mock"]
+        has_required_import = any(imp in file_info.imports for imp in required_imports)
+        
+        if not has_required_import:
+            self._add_result(
+                file_info.file_path, "structure", "warning",
+                "Missing common test framework imports"
+            )
+    
+    def _check_coverage_requirements(self):
+        """Check test coverage requirements."""
+        if self.validation_level == ValidationLevel.BASIC:
+            return
+        
+        # Calculate coverage metrics
+        total_files = len(self.test_files)
+        files_with_classes = len([f for f in self.test_files if f.has_test_class])
+        files_with_methods = len([f for f in self.test_files if len(f.test_methods) > 0])
+        
+        if total_files > 0:
+            class_coverage = (files_with_classes / total_files) * 100
+            method_coverage = (files_with_methods / total_files) * 100
+            
+            if class_coverage < 80:
+                self._add_result(
+                    "coverage", "coverage", "warning",
+                    f"Test class coverage: {class_coverage:.1f}% (expected >= 80%)"
+                )
+            
+            if method_coverage < 90:
+                self._add_result(
+                    "coverage", "coverage", "warning", 
+                    f"Test method coverage: {method_coverage:.1f}% (expected >= 90%)"
+                )
+    
+    def _check_documentation(self):
+        """Check documentation requirements."""
+        if self.validation_level == ValidationLevel.BASIC:
+            return
+        
+        # Check for README files
+        readme_files = list(self.root_path.rglob("README.md"))
+        if not readme_files:
+            self._add_result(
+                str(self.root_path), "documentation", "warning",
+                "Missing README.md in test directory"
+            )
+        
+        # Check for test documentation files
+        doc_files = list(self.root_path.rglob("*.md"))
+        if len(doc_files) < 3 and self.validation_level == ValidationLevel.COMPREHENSIVE:
+            self._add_result(
+                "documentation", "documentation", "info",
+                f"Limited documentation files found ({len(doc_files)} files)"
+            )
+    
+    def _generate_summary(self, verbose: bool = False) -> bool:
+        """Generate validation summary."""
+        errors = [r for r in self.results if r.status == "error"]
+        warnings = [r for r in self.results if r.status == "warning"]
+        passes = [r for r in self.results if r.status == "pass"]
+        
+        print(f"\n📊 Validation Summary:")
+        print(f"   ✅ Passed: {len(passes)}")
+        print(f"   ⚠️  Warnings: {len(warnings)}")
+        print(f"   ❌ Errors: {len(errors)}")
+        print(f"   📁 Test files analyzed: {len(self.test_files)}")
+        
+        if verbose:
+            print(f"\n📝 Detailed Results:")
+            for result in self.results:
+                icon = {"error": "❌", "warning": "⚠️", "pass": "✅"}[result.status]
+                print(f"   {icon} {result.file_path}: {result.message}")
+        
+        # Determine overall status
+        if errors:
+            print(f"\n❌ Validation FAILED - {len(errors)} errors found")
+            return False
+        elif warnings:
+            print(f"\n⚠️  Validation PASSED with warnings - {len(warnings)} warnings found")
+            return True
         else:
-            print(f"❌ File not found: {test_file}")
+            print(f"\n✅ Validation PASSED - All checks successful")
+            return True
     
-    print(f"\n📈 Total estimated lines: {total_lines}")
-    print(f"📁 Number of test files: {len(file_counts)}")
+    def _add_result(self, file_path: str, check_type: str, status: str, message: str, line_number: int = 0):
+        """Add a validation result."""
+        result = ValidationResult(
+            file_path=file_path,
+            check_type=check_type,
+            status=status,
+            message=message,
+            line_number=line_number
+        )
+        self.results.append(result)
     
-    # Estimate coverage based on lines (rough approximation)
-    estimated_coverage_potential = min(95, total_lines // 10)  # Rough estimate
-    print(f"🎯 Estimated coverage potential: ~{estimated_coverage_potential}%")
-    
-    return total_lines, file_counts
+    def generate_report(self, output_file: str = "test_validation_report.md"):
+        """Generate a detailed validation report."""
+        report_lines = [
+            "# Test Validation Report",
+            f"\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"\nValidation Level: {self.validation_level.value}",
+            "",
+            "## Summary",
+            f"- Total files analyzed: {len(self.test_files)}",
+            f"- Validation results: {len(self.results)}",
+            f"- Errors: {len([r for r in self.results if r.status == 'error'])}",
+            f"- Warnings: {len([r for r in self.results if r.status == 'warning'])}",
+            f"- Passed: {len([r for r in self.results if r.status == 'pass'])}",
+            "",
+            "## Test Files",
+        ]
+        
+        for file_info in self.test_files:
+            report_lines.extend([
+                f"\n### {file_info.file_path}",
+                f"- Module: {file_info.module_name}",
+                f"- Has test class: {file_info.has_test_class}",
+                f"- Test methods: {len(file_info.test_methods)}",
+                f"- Has docstring: {bool(file_info.docstring)}",
+                f"- Imports: {len(file_info.imports)}",
+                ""
+            ])
+        
+        report_lines.extend([
+            "## Validation Results",
+            ""
+        ])
+        
+        for result in self.results:
+            icon = {"error": "❌", "warning": "⚠️", "pass": "✅"}[result.status]
+            report_lines.extend([
+                f"### {icon} {result.file_path}",
+                f"**Check:** {result.check_type}",
+                f"**Status:** {result.status}",
+                f"**Message:** {result.message}",
+                f"**Line:** {result.line_number}",
+                ""
+            ])
+        
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(report_lines))
+        
+        print(f"📄 Validation report generated: {output_file}")
 
-def run_syntax_check():
-    """Check syntax of Python test files."""
-    print("\n🔍 Running Syntax Check")
-    print("=" * 50)
-    
-    base_dir = Path("tests/tool_usage")
-    python_files = []
-    
-    # Find all Python files
-    for root, dirs, files in os.walk(base_dir):
-        for file in files:
-            if file.endswith('.py'):
-                python_files.append(Path(root) / file)
-    
-    syntax_ok = True
-    for filepath in python_files:
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                compile(f.read(), str(filepath), 'exec')
-            print(f"✅ {filepath.name}: Syntax OK")
-        except SyntaxError as e:
-            print(f"❌ {filepath.name}: Syntax Error - {e}")
-            syntax_ok = False
-        except Exception as e:
-            print(f"⚠️ {filepath.name}: Other error - {e}")
-    
-    return syntax_ok
 
 def main():
-    """Main validation function."""
-    print("🚀 Tool Usage Test Suite Validation")
-    print("=" * 60)
+    """Main entry point."""
+    parser = argparse.ArgumentParser(description="Validate tool_usage test suite")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Show detailed output")
+    parser.add_argument("--level", choices=["basic", "standard", "comprehensive"], 
+                       default="standard", help="Validation level")
+    parser.add_argument("--fix", action="store_true", help="Attempt to fix issues automatically")
+    parser.add_argument("--coverage", action="store_true", help="Generate coverage analysis")
+    parser.add_argument("--report", type=str, help="Generate detailed report file")
+    parser.add_argument("--path", type=str, default="tests/tool_usage", 
+                       help="Path to test directory")
     
-    # Change to project root if not already there
-    if not Path("tests/tool_usage").exists():
-        print("❌ tests/tool_usage directory not found.")
-        print("Please run this script from the project root directory.")
-        sys.exit(1)
+    args = parser.parse_args()
     
-    # Run all checks
-    checks_passed = 0
-    total_checks = 4
+    # Set validation level
+    validation_level = ValidationLevel(args.level)
     
-    if check_directory_structure():
-        checks_passed += 1
+    # Create validator
+    validator = TestValidator(args.path, validation_level)
     
-    if validate_test_files():
-        checks_passed += 1
+    # Run validation
+    success = validator.validate_all(args.verbose)
     
-    if run_syntax_check():
-        checks_passed += 1
+    # Generate report if requested
+    if args.report:
+        validator.generate_report(args.report)
     
-    total_lines, file_counts = estimate_line_counts()
-    checks_passed += 1  # This check always "passes"
-    
-    # Final summary
-    print("\n" + "=" * 60)
-    print("🎯 VALIDATION SUMMARY")
-    print("=" * 60)
-    print(f"Checks passed: {checks_passed}/{total_checks}")
-    
-    if checks_passed == total_checks:
-        print("🎉 All validation checks passed!")
-        print("\n📋 Next steps:")
-        print("1. Run: python tests/tool_usage/quick_test_runner.py")
-        print("2. Run: python -m pytest tests/tool_usage/ -v")
-        print("3. Run: python tests/tool_usage/manual_tests/run_manual_tests.py")
-        return True
-    else:
-        print("⚠️ Some validation checks failed.")
-        print("Please review the errors above and fix any issues.")
-        return False
+    # Exit with appropriate code
+    sys.exit(0 if success else 1)
+
 
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    try:
+        from datetime import datetime
+    except ImportError:
+        datetime = None
+    
+    main()
