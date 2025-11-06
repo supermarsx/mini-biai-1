@@ -1,878 +1,846 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Dict, List, Optional, Any, Tuple, Union
-from dataclasses import dataclass
 import numpy as np
+from typing import List, Dict, Any, Optional, Tuple, Union
+from enum import Enum
 import math
+import json
+from dataclasses import dataclass
+import copy
+
+
+class AdapterType(Enum):
+    """Types of adapters supported."""
+    
+    # Basic adapters
+    LINEAR = "linear"
+    BOTTLENECK = "bottleneck"
+    
+    # Advanced adapters
+    LORA = "lora"
+    ADALORA = "adalora"
+    
+    # Prompt-based adapters
+    PREFIX_TUNING = "prefix_tuning"
+    P_TUNING = "p_tuning"
+    PROMPT_TUNING = "prompt_tuning"
+    
+    # Layer-wise adapters
+    LAYER_NORM_ADAPTER = "layer_norm_adapter"
+    ADDITIVE_ADAPTER = "additive_adapter"
+    
+    # Multi-modal adapters
+    CROSS_ATTENTION_ADAPTER = "cross_attention_adapter"
+    
+    # Specialized adapters
+    COMPACTER = "compacter"
+    HYPER_ADAPTER = "hyper_adapter"
+    
+    # Sequential adapters
+    SEQUENTIAL_ADAPTER = "sequential_adapter"
+    PARALLEL_ADAPTER = "parallel_adapter"
 
 
 @dataclass
 class AdapterConfig:
-    """Configuration for adapter modules."""
-    adapter_size: int = 64
-    hidden_size: int = 512
-    bottleneck_size: int = 64
+    """Configuration for adapter layers."""
+    
+    adapter_type: AdapterType
+    input_dim: int
+    hidden_dim: Optional[int] = None
+    output_dim: Optional[int] = None
+    
+    # Common parameters
     dropout: float = 0.1
-    activation: str = 'gelu'
-    non_linearity: str = 'gelu'
-    bias: bool = True
-    layer_norm_epsilon: float = 1e-12
-    pre_norm: bool = False
-    post_norm: bool = True
-    scaler: float = 1.0
+    activation: str = "relu"
+    
+    # LoRA specific
+    rank: int = 8
+    alpha: float = 32.0
+    dropout_lora: float = 0.05
+    
+    # Prefix tuning specific
+    num_virtual_tokens: int = 20
+    
+    # Prompt tuning specific
+    prompt_length: int = 10
+    
+    # Sequential adapter specific
+    num_layers: int = 2
+    
+    # General parameters
+    bottleneck_ratio: float = 0.1  # For bottleneck adapters
+    scaling_factor: float = 1.0
     
     def __post_init__(self):
-        if self.activation == 'gelu':
-            self.activation_fn = F.gelu
-        elif self.activation == 'relu':
-            self.activation_fn = F.relu
-        elif self.activation == 'tanh':
-            self.activation_fn = torch.tanh
-        elif self.activation == 'swish':
-            def swish(x):
-                return x * torch.sigmoid(x)
-            self.activation_fn = swish
-        else:
-            raise ValueError(f"Unsupported activation: {self.activation}")
+        if self.hidden_dim is None:
+            self.hidden_dim = max(1, int(self.input_dim * self.bottleneck_ratio))
+        if self.output_dim is None:
+            self.output_dim = self.input_dim
 
 
-class BaseAdapter(nn.Module):
-    """Base class for all adapter modules."""
+class LinearAdapter(nn.Module):
+    """Simple linear adapter with optional non-linearity."""
     
     def __init__(self, config: AdapterConfig):
-        super().__init__()
+        super(LinearAdapter, self).__init__()
+        
         self.config = config
-        self.output_size = config.hidden_size
         
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass through adapter."""
-        raise NotImplementedError
+        # Adapter layers
+        self.down_project = nn.Linear(config.input_dim, config.hidden_dim)
+        self.up_project = nn.Linear(config.hidden_dim, config.output_dim)
         
-    def resize_adapter(self, new_size: int):
-        """Resize the adapter to a new bottleneck size."""
-        self.config.bottleneck_size = new_size
-        
-    def get_trainable_parameters(self) -> torch.Tensor:
-        """Get all trainable parameters of the adapter."""
-        return list(self.parameters())
-        
-    def freeze_non_adapter_parameters(self, model: nn.Module):
-        """Freeze all parameters except adapter parameters."""
-        for name, param in model.named_parameters():
-            if 'adapter' not in name.lower():
-                param.requires_grad = False
-                
-    def get_num_parameters(self) -> int:
-        """Get the number of trainable parameters in the adapter."""
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
-
-
-class LinearAdapter(BaseAdapter):
-    """Simple linear adapter with bottleneck design."""
-    
-    def __init__(self, config: AdapterConfig):
-        super().__init__(config)
-        
-        # Down-projection to bottleneck
-        self.down_projection = nn.Linear(
-            config.hidden_size, 
-            config.bottleneck_size, 
-            bias=config.bias
-        )
-        
-        # Up-projection back to hidden size
-        self.up_projection = nn.Linear(
-            config.bottleneck_size, 
-            config.hidden_size, 
-            bias=config.bias
-        )
-        
-        # Layer normalization
-        self.layer_norm = nn.LayerNorm(
-            config.hidden_size, 
-            eps=config.layer_norm_epsilon
-        )
-        
-        # Dropout
+        # Activation and dropout
+        self.activation = self._get_activation(config.activation)
         self.dropout = nn.Dropout(config.dropout)
         
         # Initialization
         self._init_weights()
-        
+    
+    def _get_activation(self, activation: str) -> nn.Module:
+        """Get activation function by name."""
+        activations = {
+            'relu': nn.ReLU(inplace=True),
+            'gelu': nn.GELU(),
+            'tanh': nn.Tanh(),
+            'sigmoid': nn.Sigmoid(),
+            'leaky_relu': nn.LeakyReLU(0.1, inplace=True),
+            'elu': nn.ELU(inplace=True)
+        }
+        return activations.get(activation, nn.ReLU(inplace=True))
+    
     def _init_weights(self):
         """Initialize adapter weights."""
-        nn.init.xavier_uniform_(self.down_projection.weight)
-        nn.init.xavier_uniform_(self.up_projection.weight)
+        # Xavier initialization for linear layers
+        nn.init.xavier_uniform_(self.down_project.weight)
+        nn.init.xavier_uniform_(self.up_project.weight)
         
-        if self.down_projection.bias is not None:
-            nn.init.zeros_(self.down_projection.bias)
-        if self.up_projection.bias is not None:
-            nn.init.zeros_(self.up_projection.bias)
-            
+        # Zero bias for better initial performance
+        nn.init.zeros_(self.down_project.bias)
+        nn.init.zeros_(self.up_project.bias)
+    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Save original shape for restoration
-        original_shape = x.shape
-        
-        # Ensure input is 2D (batch_size, hidden_size)
-        if len(original_shape) > 2:
-            x = x.view(-1, original_shape[-1])
-        
-        # Pre-norm or post-norm processing
-        if self.config.pre_norm:
-            x = self.layer_norm(x)
-        
+        """Forward pass through linear adapter."""
         # Down projection
-        x = self.down_projection(x)
-        
-        # Activation
-        x = self.config.activation_fn(x)
-        
-        # Dropout
+        x = self.down_project(x)
+        x = self.activation(x)
         x = self.dropout(x)
         
         # Up projection
-        x = self.up_projection(x)
+        x = self.up_project(x)
         
-        # Scale down (residual connection scaling)
-        x = x * self.config.scaler
-        
-        # Post-norm
-        if self.config.post_norm:
-            x = self.layer_norm(x)
-            
-        # Restore original shape
-        if len(original_shape) > 2:
-            x = x.view(*original_shape[:-1], original_shape[-1])
-            
         return x
 
 
-class LoRAAdapter(BaseAdapter):
-    """LoRA (Low-Rank Adaptation) adapter."""
+class LoRAAdapter(nn.Module):
+    """Low-Rank Adaptation (LoRA) adapter."""
     
-    def __init__(self, config: AdapterConfig, r: int = 16, lora_alpha: int = 16, lora_dropout: float = 0.1):
-        # Update config for LoRA
-        config.adapter_size = r
-        config.dropout = lora_dropout
-        config.bottleneck_size = r
+    def __init__(self, config: AdapterConfig):
+        super(LoRAAdapter, self).__init__()
         
-        super().__init__(config)
+        self.config = config
+        self.rank = config.rank
+        self.alpha = config.alpha
+        self.scaling = config.alpha / config.rank
         
-        self.r = r
-        self.lora_alpha = lora_alpha
-        self.scaling = self.lora_alpha / self.r
+        assert config.input_dim == config.output_dim, "LoRA requires input_dim == output_dim"
         
         # LoRA matrices
-        self.lora_A = nn.Parameter(torch.empty((config.hidden_size, r)))
-        self.lora_B = nn.Parameter(torch.empty((r, config.hidden_size)))
-        
-        # Dropout for LoRA
-        self.lora_dropout = nn.Dropout(lora_dropout)
-        
-        # Initialize weights
-        self._init_weights()
-        
-    def _init_weights(self):
-        """Initialize LoRA weights."""
-        # Kaiming initialization for A matrix
-        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
-        
-        # Zero initialization for B matrix (so initial LoRA effect is zero)
-        nn.init.zeros_(self.lora_B)
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Save original shape
-        original_shape = x.shape
-        
-        # Ensure input is 2D
-        if len(original_shape) > 2:
-            x = x.view(-1, original_shape[-1])
-        
-        # LoRA computation: lora_A @ lora_B @ x
-        # Equivalent to: x + lora_scaling * (A @ (B @ x))
-        lora_output = torch.matmul(self.lora_A, self.lora_B)
-        lora_output = torch.matmul(lora_output, x.t()).t()
-        
-        # Apply scaling
-        lora_output = lora_output * self.scaling
-        
-        # Restore original shape
-        if len(original_shape) > 2:
-            lora_output = lora_output.view(*original_shape[:-1], original_shape[-1])
-            
-        return lora_output
-
-
-class PrefixTuningAdapter(BaseAdapter):
-    """Prefix tuning adapter that prepends learnable context."""
-    
-    def __init__(self, config: AdapterConfig, num_virtual_tokens: int = 5):
-        super().__init__(config)
-        
-        self.num_virtual_tokens = num_virtual_tokens
-        
-        # Virtual token embeddings
-        self.virtual_token_embeddings = nn.Embedding(
-            num_virtual_tokens, 
-            config.hidden_size
+        self.lora_A = nn.Parameter(
+            torch.empty(config.input_dim, self.rank, dtype=torch.float32)
+        )
+        self.lora_B = nn.Parameter(
+            torch.empty(self.rank, config.output_dim, dtype=torch.float32)
         )
         
-        # Layer normalization for virtual tokens
-        self.virtual_tokens_layer_norm = nn.LayerNorm(
-            config.hidden_size, 
-            eps=config.layer_norm_epsilon
+        # Dropout for LoRA
+        self.dropout = nn.Dropout(config.dropout_lora)
+        
+        # Initialize LoRA weights
+        self._init_weights()
+    
+    def _init_weights(self):
+        """Initialize LoRA weights."""
+        # Initialize A with small random values
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        
+        # Initialize B with zeros
+        nn.init.zeros_(self.lora_B)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through LoRA adapter."""
+        # Compute LoRA adaptation
+        result = torch.matmul(x, self.lora_A)  # [batch, rank]
+        result = torch.matmul(result, self.lora_B)  # [batch, output_dim]
+        result = self.dropout(result)
+        
+        # Apply scaling
+        result = result * self.scaling
+        
+        return result
+
+
+class LoraAdapter(nn.Module):
+    """LoRA implementation that can be applied to existing linear layers."""
+    
+    def __init__(self, 
+                 in_features: int,
+                 out_features: int,
+                 rank: int = 8,
+                 alpha: float = 32.0,
+                 dropout: float = 0.05,
+                 merge_weights: bool = False):
+        super(LoraAdapter, self).__init__()
+        
+        self.in_features = in_features
+        self.out_features = out_features
+        self.rank = rank
+        self.alpha = alpha
+        self.merge_weights = merge_weights
+        
+        # LoRA matrices
+        self.lora_A = nn.Parameter(
+            torch.empty(in_features, rank, dtype=torch.float32)
+        )
+        self.lora_B = nn.Parameter(
+            torch.empty(rank, out_features, dtype=torch.float32)
+        )
+        
+        self.scaling = alpha / rank
+        
+        # Freeze the original weights
+        self.frozen_weight = None
+        
+        # Dropout
+        self.lora_dropout = nn.Dropout(dropout)
+        
+        # Initialize weights
+        self.reset_parameters()
+    
+    def reset_parameters(self):
+        """Reset LoRA parameters."""
+        nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
+        nn.init.zeros_(self.lora_B)
+    
+    def merge(self):
+        """Merge LoRA weights into base weights."""
+        if self.frozen_weight is not None:
+            self.frozen_weight += self.scaling * torch.matmul(self.lora_A, self.lora_B)
+            self.lora_A.requires_grad = False
+            self.lora_B.requires_grad = False
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through LoRA."""
+        result = torch.matmul(x, self.lora_A)  # [batch, rank]
+        result = torch.matmul(result, self.lora_B)  # [batch, out_features]
+        result = self.lora_dropout(result)
+        result = result * self.scaling
+        
+        return result
+
+
+class PrefixTuningAdapter(nn.Module):
+    """Prefix tuning adapter for language models."""
+    
+    def __init__(self, 
+                 config: AdapterConfig,
+                 num_layers: int = 12,
+                 is_encoder_decoder: bool = False):
+        super(PrefixTuningAdapter, self).__init__()
+        
+        self.config = config
+        self.num_virtual_tokens = config.num_virtual_tokens
+        self.num_layers = num_layers
+        self.is_encoder_decoder = is_encoder_decoder
+        
+        # Prefix embeddings
+        self.prefix_embeddings = nn.Parameter(
+            torch.randn(
+                2 * num_layers if is_encoder_decoder else num_layers,
+                num_virtual_tokens,
+                config.input_dim
+            )
+        )
+        
+        # MLP for prefix processing
+        self.prefix_mlp = nn.Sequential(
+            nn.Linear(config.input_dim, config.hidden_dim),
+            nn.Tanh(),
+            nn.Linear(config.hidden_dim, config.input_dim)
         )
         
         # Initialize
         self._init_weights()
-        
-    def _init_weights(self):
-        """Initialize virtual token embeddings."""
-        nn.init.normal_(self.virtual_token_embeddings.weight, std=0.02)
-        
-    def get_virtual_tokens(self, batch_size: int) -> torch.Tensor:
-        """Get virtual tokens for a batch."""
-        device = self.virtual_token_embeddings.weight.device
-        
-        # Create token indices [0, 1, 2, ..., num_virtual_tokens-1]
-        token_indices = torch.arange(
-            self.num_virtual_tokens, 
-            device=device
-        ).unsqueeze(0).expand(batch_size, -1)
-        
-        # Get embeddings
-        virtual_tokens = self.virtual_token_embeddings(token_indices)
-        
-        # Apply layer norm
-        virtual_tokens = self.virtual_tokens_layer_norm(virtual_tokens)
-        
-        return virtual_tokens
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size = x.size(0)
-        
-        # Get virtual tokens
-        virtual_tokens = self.get_virtual_tokens(batch_size)
-        
-        # Concatenate virtual tokens with input
-        prefixed_input = torch.cat([virtual_tokens, x], dim=1)
-        
-        return prefixed_input
-
-
-class PTuningAdapter(BaseAdapter):
-    """P-Tuning v2 adapter with continuous prompts."""
     
-    def __init__(self, config: AdapterConfig, prompt_length: int = 10, pretrain_gpt_mlm: bool = True):
-        super().__init__(config)
-        
-        self.prompt_length = prompt_length
-        self.pretrain_gpt_mlm = pretrain_gpt_mlm
-        
-        # Continuous prompt tokens
-        self.prompt_embeddings = nn.Embedding(
-            prompt_length, 
-            config.hidden_size
-        )
-        
-        # MLP for prompt transformation
-        self.prompt_mlp = nn.Sequential(
-            nn.Linear(config.hidden_size, config.hidden_size // 2),
-            nn.ReLU(),
-            nn.Linear(config.hidden_size // 2, config.hidden_size)
-        )
-        
-        # Layer norm
-        self.prompt_layer_norm = nn.LayerNorm(
-            config.hidden_size, 
-            eps=config.layer_norm_epsilon
-        )
-        
-        self._init_weights()
-        
     def _init_weights(self):
-        """Initialize P-Tuning weights."""
-        nn.init.normal_(self.prompt_embeddings.weight, std=0.02)
+        """Initialize prefix tuning weights."""
+        nn.init.normal_(self.prefix_embeddings, mean=0.0, std=0.02)
+    
+    def get_prompt(self, batch_size: int) -> torch.Tensor:
+        """Get prefix prompts for a given batch size."""
+        prompt = self.prefix_embeddings.expand(-1, batch_size, -1, -1)
         
-        # Initialize MLP weights
-        for layer in self.prompt_mlp:
-            if isinstance(layer, nn.Linear):
-                nn.init.xavier_uniform_(layer.weight)
-                if layer.bias is not None:
-                    nn.init.zeros_(layer.bias)
-                    
-    def get_prompt_tokens(self) -> torch.Tensor:
-        """Get continuous prompt tokens."""
-        device = self.prompt_embeddings.weight.device
+        # Process through MLP
+        prompt = prompt.transpose(0, 1)  # [batch, layers, tokens, dim]
+        batch_size, num_layers, seq_len, hidden_dim = prompt.shape
         
-        # Create prompt token indices
-        prompt_indices = torch.arange(
-            self.prompt_length, 
-            device=device
+        prompt = prompt.reshape(batch_size, num_layers * seq_len, hidden_dim)
+        prompt = self.prefix_mlp(prompt)
+        
+        return prompt.reshape(batch_size, num_layers, seq_len, hidden_dim)
+
+
+class PromptTuningAdapter(nn.Module):
+    """Prompt tuning adapter for text generation."""
+    
+    def __init__(self, config: AdapterConfig, vocab_size: int = 30000):
+        super(PromptTuningAdapter, self).__init__()
+        
+        self.config = config
+        self.prompt_length = config.prompt_length
+        self.vocab_size = vocab_size
+        
+        # Learnable prompts
+        self.prompt_tokens = nn.Parameter(
+            torch.randint(0, vocab_size, (1, self.prompt_length))
         )
         
-        # Get embeddings
-        prompt_tokens = self.prompt_embeddings(prompt_indices)
+        # Embedding layer for prompt tokens
+        self.embedding = nn.Embedding(vocab_size, config.input_dim)
         
-        # Apply MLP transformation
-        prompt_tokens = self.prompt_mlp(prompt_tokens)
-        
-        # Apply layer norm
-        prompt_tokens = self.prompt_layer_norm(prompt_tokens)
-        
-        return prompt_tokens
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size = x.size(0)
-        
-        # Get prompt tokens
-        prompt_tokens = self.get_prompt_tokens()
-        
-        # Expand prompt tokens to batch size
-        prompt_tokens = prompt_tokens.unsqueeze(0).expand(batch_size, -1, -1)
-        
-        return prompt_tokens
+        # Initialize
+        self._init_weights()
+    
+    def _init_weights(self):
+        """Initialize prompt tuning weights."""
+        nn.init.normal_(self.embedding.weight, mean=0.0, std=0.02)
+    
+    def get_prompt(self) -> torch.Tensor:
+        """Get prompt embeddings."""
+        return self.embedding(self.prompt_tokens)  # [1, prompt_length, dim]
 
 
-class BitFitAdapter(BaseAdapter):
-    """BitFit: Simple, Efficient and Versatile Parameter Efficient Transfer Learning."""
+class AdditiveAdapter(nn.Module):
+    """Additive adapter that adds transformation to input."""
     
     def __init__(self, config: AdapterConfig):
-        super().__init__(config)
+        super(AdditiveAdapter, self).__init__()
         
-        # Only bias parameters are trainable
-        # This is typically applied to existing linear layers
+        self.config = config
         
-    def apply_to_layer(self, layer: nn.Module) -> nn.Module:
-        """Apply BitFit to a linear layer by making only biases trainable."""
-        if isinstance(layer, nn.Linear):
-            # Make all bias parameters trainable
-            if layer.bias is not None:
-                layer.bias.requires_grad = True
-            else:
-                # If no bias, create one and make it trainable
-                layer.bias = nn.Parameter(torch.zeros(layer.out_features))
-                layer.bias.requires_grad = True
-                
-        return layer
-        
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # BitFit doesn't add new parameters, it just modifies existing bias terms
-        # This method should be applied to specific layers, not as a standalone forward pass
-        return x
-
-
-class IA3Adapter(BaseAdapter):
-    """IA3: Infusion Adapter for General Adaptation."""
-    
-    def __init__(self, config: AdapterConfig, target_modules: List[str] = None):
-        super().__init__(config)
-        
-        self.target_modules = target_modules or []
-        
-        # Scale factors for infusion
-        self.scale_factors = nn.ParameterDict({})
-        
-    def add_scale_factors(self, module_name: str, shape: torch.Size):
-        """Add scale factors for a module."""
-        # Initialize with ones (no scaling initially)
-        self.scale_factors[module_name] = nn.Parameter(torch.ones(shape))
-        
-    def forward(self, x: torch.Tensor, module_name: str) -> torch.Tensor:
-        """Apply IA3 scaling."""
-        if module_name in self.scale_factors:
-            scale_factor = self.scale_factors[module_name]
-            
-            # Ensure compatible shapes
-            if len(scale_factor.shape) == 1 and scale_factor.size(0) == x.size(-1):
-                scale_factor = scale_factor.unsqueeze(0).unsqueeze(0)
-            
-            # Apply scaling
-            x = x * scale_factor
-            
-        return x
-
-
-class CompacterAdapter(BaseAdapter):
-    """Compacter: Efficiently Adapting Pretrained Language Models via Structured Composable Adapter."""
-    
-    def __init__(self, config: AdapterConfig, groups: int = 4, share_top: bool = False):
-        super().__init__(config)
-        
-        self.groups = groups
-        self.share_top = share_top
-        
-        # Bottleneck projections
-        self.bottleneck_down = nn.Linear(
-            config.hidden_size, 
-            config.bottleneck_size, 
-            bias=False
+        # Additive transformation
+        self.additive_net = nn.Sequential(
+            nn.Linear(config.input_dim, config.hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(config.dropout),
+            nn.Linear(config.hidden_dim, config.output_dim)
         )
         
-        self.bottleneck_up = nn.Linear(
-            config.bottleneck_size, 
-            config.hidden_size, 
-            bias=False
-        )
-        
-        # Group-specific projections
-        self.group_projections = nn.ModuleList([
-            nn.Linear(config.hidden_size, config.hidden_size, bias=False)
-            for _ in range(groups)
-        ])
-        
-        if self.share_top:
-            self.shared_top = nn.Linear(config.hidden_size, config.hidden_size, bias=False)
-        else:
-            self.shared_top = None
-            
-        # Layer norm
-        self.layer_norm = nn.LayerNorm(
-            config.hidden_size, 
-            eps=config.layer_norm_epsilon
-        )
-        
-        # Dropout
-        self.dropout = nn.Dropout(config.dropout)
-        
+        # Initialization
         self._init_weights()
-        
+    
     def _init_weights(self):
-        """Initialize Compacter weights."""
-        nn.init.xavier_uniform_(self.bottleneck_down.weight)
-        nn.init.xavier_uniform_(self.bottleneck_up.weight)
+        """Initialize weights."""
+        nn.init.normal_(self.additive_net[0].weight, mean=0.0, std=0.02)
+        nn.init.normal_(self.additive_net[2].weight, mean=0.0, std=0.02)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass with additive transformation."""
+        additive_output = self.additive_net(x)
+        return x + additive_output  # Additive skip connection
+
+
+class SequentialAdapter(nn.Module):
+    """Sequential adapter combining multiple adapter types."""
+    
+    def __init__(self, configs: List[AdapterConfig]):
+        super(SequentialAdapter, self).__init__()
         
-        for projection in self.group_projections:
-            nn.init.xavier_uniform_(projection.weight)
-            
-        if self.shared_top is not None:
-            nn.init.xavier_uniform_(self.shared_top.weight)
-            
-    def forward(self, x: torch.Tensor, group_id: int = 0) -> torch.Tensor:
-        # Apply group-specific projection
-        group_proj = self.group_projections[group_id % self.groups]
-        x_group = group_proj(x)
+        self.adapters = nn.ModuleList()
         
-        # Bottleneck processing
-        x_bottleneck = self.bottleneck_down(x_group)
-        x_bottleneck = self.config.activation_fn(x_bottleneck)
-        x_bottleneck = self.dropout(x_bottleneck)
-        
-        # Up projection
-        x_up = self.bottleneck_up(x_bottleneck)
-        
-        # Add to group projection
-        x = x_group + x_up
-        
-        # Shared top layer if specified
-        if self.shared_top is not None:
-            x = x + self.shared_top(x)
-            
-        # Apply layer norm
-        x = self.layer_norm(x)
-        
+        for config in configs:
+            adapter = self._create_adapter(config)
+            self.adapters.append(adapter)
+    
+    def _create_adapter(self, config: AdapterConfig) -> nn.Module:
+        """Create adapter based on configuration."""
+        if config.adapter_type == AdapterType.LINEAR:
+            return LinearAdapter(config)
+        elif config.adapter_type == AdapterType.LORA:
+            return LoraAdapter(config.input_dim, config.output_dim, config.rank)
+        elif config.adapter_type == AdapterType.ADDITIVE_ADAPTER:
+            return AdditiveAdapter(config)
+        else:
+            # Default to linear adapter
+            return LinearAdapter(config)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through sequential adapters."""
+        for adapter in self.adapters:
+            x = adapter(x)
         return x
 
 
-class AdapterLayer(BaseAdapter):
-    """Layer that can contain multiple adapters."""
+class LanguageAdapter(nn.Module):
+    """Specialized adapter for language model fine-tuning."""
     
-    def __init__(self, config: AdapterConfig, adapters: Dict[str, BaseAdapter] = None):
-        super().__init__(config)
+    def __init__(self, 
+                 config: AdapterConfig,
+                 use_prefix_tuning: bool = True,
+                 use_lora: bool = True):
+        super(LanguageAdapter, self).__init__()
         
+        self.config = config
+        self.use_prefix_tuning = use_prefix_tuning
+        self.use_lora = use_lora
+        
+        # Create different adapter components
         self.adapters = nn.ModuleDict()
         
-        if adapters:
-            self.adapters.update(adapters)
-            
-    def add_adapter(self, name: str, adapter: BaseAdapter):
-        """Add an adapter to the layer."""
-        self.adapters[name] = adapter
+        if use_prefix_tuning:
+            self.adapters['prefix'] = PrefixTuningAdapter(config)
         
-    def remove_adapter(self, name: str):
-        """Remove an adapter from the layer."""
-        if name in self.adapters:
-            del self.adapters[name]
-            
-    def get_adapter(self, name: str) -> Optional[BaseAdapter]:
-        """Get an adapter by name."""
-        return self.adapters.get(name)
+        if use_lora:
+            # For language models, LoRA is often applied to attention layers
+            self.adapters['lora'] = LoraAdapter(
+                config.input_dim, config.output_dim, config.rank
+            )
         
-    def forward(self, x: torch.Tensor, adapter_name: str = None) -> torch.Tensor:
-        """Forward pass through specified adapter or all adapters."""
-        if adapter_name and adapter_name in self.adapters:
-            return self.adapters[adapter_name](x)
-        elif adapter_name is None and len(self.adapters) > 0:
-            # Apply all adapters and sum
-            adapter_outputs = [adapter(x) for adapter in self.adapters.values()]
-            return torch.stack(adapter_outputs, dim=-1).sum(dim=-1)
-        else:
-            return x
-            
-    def enable_adapter(self, name: str):
-        """Enable a specific adapter."""
-        if name in self.adapters:
-            for param in self.adapters[name].parameters():
-                param.requires_grad = True
-                
-    def disable_adapter(self, name: str):
-        """Disable a specific adapter (set requires_grad to False)."""
-        if name in self.adapters:
-            for param in self.adapters[name].parameters():
-                param.requires_grad = False
-
-
-class MultiModalAdapter(BaseAdapter):
-    """Adapter for multi-modal data (text, image, audio)."""
+        # Base adapter
+        self.adapters['base'] = LinearAdapter(config)
     
-    def __init__(self, config: AdapterConfig, 
-                 text_adapter: Optional[BaseAdapter] = None,
-                 image_adapter: Optional[BaseAdapter] = None,
-                 audio_adapter: Optional[BaseAdapter] = None,
-                 fusion_method: str = 'attention'):
-        super().__init__(config)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass through language adapter."""
+        # Apply base adapter
+        output = self.adapters['base'](x)
         
-        # Modality-specific adapters
-        self.text_adapter = text_adapter or LinearAdapter(config)
-        self.image_adapter = image_adapter or LinearAdapter(config)
-        self.audio_adapter = audio_adapter or LinearAdapter(config)
+        # Apply additional adapters if enabled
+        if self.use_lora and 'lora' in self.adapters:
+            lora_output = self.adapters['lora'](x)
+            output = output + lora_output
         
-        # Fusion method
-        self.fusion_method = fusion_method
-        
-        if fusion_method == 'attention':
-            self.attention = nn.MultiheadAttention(
-                embed_dim=config.hidden_size,
-                num_heads=8,
-                dropout=config.dropout,
-                batch_first=True
-            )
-            self.fusion_norm = nn.LayerNorm(config.hidden_size)
-        elif fusion_method == 'concat':
-            self.fusion_projection = nn.Linear(
-                config.hidden_size * 3, 
-                config.hidden_size
-            )
-        
-        self._init_weights()
-        
-    def _init_weights(self):
-        """Initialize fusion weights."""
-        if self.fusion_method == 'concat' and hasattr(self, 'fusion_projection'):
-            nn.init.xavier_uniform_(self.fusion_projection.weight)
-            if self.fusion_projection.bias is not None:
-                nn.init.zeros_(self.fusion_projection.bias)
-                
-    def forward(self, text_features: torch.Tensor = None,
-                image_features: torch.Tensor = None,
-                audio_features: torch.Tensor = None) -> torch.Tensor:
-        """Process multi-modal features through adapters."""
-        processed_modalities = []
-        
-        # Process text features
-        if text_features is not None:
-            text_processed = self.text_adapter(text_features)
-            processed_modalities.append(text_processed)
-            
-        # Process image features
-        if image_features is not None:
-            image_processed = self.image_adapter(image_features)
-            processed_modalities.append(image_processed)
-            
-        # Process audio features
-        if audio_features is not None:
-            audio_processed = self.audio_adapter(audio_features)
-            processed_modalities.append(audio_processed)
-            
-        if not processed_modalities:
-            return torch.empty(0)
-            
-        # Fuse modalities
-        if len(processed_modalities) == 1:
-            return processed_modalities[0]
-        elif self.fusion_method == 'attention':
-            # Attention-based fusion
-            stacked_features = torch.stack(processed_modalities, dim=1)
-            
-            # Self-attention over modalities
-            attended_features, _ = self.attention(
-                stacked_features, stacked_features, stacked_features
-            )
-            
-            # Apply norm and sum
-            attended_features = self.fusion_norm(attended_features)
-            fused_features = attended_features.sum(dim=1)
-            
-            return fused_features
-            
-        elif self.fusion_method == 'concat':
-            # Concatenate and project
-            concatenated = torch.cat(processed_modalities, dim=-1)
-            fused_features = self.fusion_projection(concatenated)
-            
-            return fused_features
-        else:
-            # Default: sum
-            return torch.stack(processed_modalities, dim=-1).sum(dim=-1)
+        return output
 
 
-class LanguageAdapter(BaseAdapter):
-    """Adapter specialized for language model tasks."""
+class VisionAdapter(nn.Module):
+    """Specialized adapter for vision model fine-tuning."""
     
-    def __init__(self, config: AdapterConfig, 
-                 vocab_size: int = 30000,
-                 max_position_embeddings: int = 512):
-        super().__init__(config)
+    def __init__(self, config: AdapterConfig, input_size: Tuple[int, int] = (224, 224)):
+        super(VisionAdapter, self).__init__()
         
-        # Position embeddings adapter
-        self.position_embeddings_adapter = nn.Embedding(
-            max_position_embeddings, 
-            config.hidden_size
-        )
-        
-        # Token type embeddings
-        self.token_type_embeddings = nn.Embedding(
-            2, 
-            config.hidden_size
-        )
-        
-        # Language-specific adapters
-        self.language_adapter = LinearAdapter(config)
-        self.task_adapter = LinearAdapter(config)
-        
-        # Layer norm for language features
-        self.language_layer_norm = nn.LayerNorm(
-            config.hidden_size, 
-            eps=config.layer_norm_epsilon
-        )
-        
-        self._init_weights()
-        
-    def _init_weights(self):
-        """Initialize language adapter weights."""
-        nn.init.normal_(self.position_embeddings_adapter.weight, std=0.02)
-        nn.init.normal_(self.token_type_embeddings.weight, std=0.02)
-        
-    def get_position_embeddings(self, seq_length: int, device: torch.device) -> torch.Tensor:
-        """Get position embeddings for a sequence."""
-        position_indices = torch.arange(
-            seq_length, 
-            device=device
-        )
-        
-        return self.position_embeddings_adapter(position_indices)
-        
-    def get_token_type_embeddings(self, token_type_ids: torch.Tensor) -> torch.Tensor:
-        """Get token type embeddings."""
-        return self.token_type_embeddings(token_type_ids)
-        
-    def forward(self, x: torch.Tensor, 
-                token_type_ids: torch.Tensor = None,
-                position_ids: torch.Tensor = None) -> torch.Tensor:
-        """Forward pass with language-specific processing."""
-        
-        # Add position embeddings if provided
-        if position_ids is not None:
-            position_embeds = self.get_position_embeddings(
-                x.size(1), x.device
-            )
-            x = x + position_embeds
-            
-        # Add token type embeddings if provided
-        if token_type_ids is not None:
-            token_type_embeds = self.get_token_type_embeddings(token_type_ids)
-            x = x + token_type_embeds
-            
-        # Apply language-specific processing
-        x = self.language_layer_norm(x)
-        x = self.language_adapter(x)
-        x = self.task_adapter(x)
-        
-        return x
-
-
-class VisionAdapter(BaseAdapter):
-    """Adapter specialized for vision model tasks."""
-    
-    def __init__(self, config: AdapterConfig,
-                 image_size: int = 224,
-                 patch_size: int = 16,
-                 num_channels: int = 3):
-        super().__init__(config)
-        
-        self.image_size = image_size
-        self.patch_size = patch_size
-        self.num_patches = (image_size // patch_size) ** 2
-        
-        # Patch embedding adapter
-        self.patch_embedding = nn.Conv2d(
-            num_channels, config.hidden_size, 
-            kernel_size=patch_size, 
-            stride=patch_size
-        )
-        
-        # Learnable patch embeddings
-        self.patch_embeddings = nn.Parameter(
-            torch.randn(1, 1, config.hidden_size) * 0.02
-        )
-        
-        # Class token
-        self.class_token = nn.Parameter(
-            torch.randn(1, 1, config.hidden_size) * 0.02
-        )
+        self.config = config
+        self.input_size = input_size
         
         # Vision-specific adapters
-        self.vision_adapter = LinearAdapter(config)
-        self.spatial_adapter = LinearAdapter(config)
+        self.adapters = nn.ModuleDict()
         
-        # Position embeddings
-        self.position_embeddings = nn.Embedding(
-            self.num_patches + 1, 
-            config.hidden_size
+        # Feature adapter for different resolutions
+        self.adapters['feature_adapter'] = LinearAdapter(config)
+        
+        # Spatial adapter for handling spatial information
+        self.spatial_adapter = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+            nn.Linear(config.input_dim, config.hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(config.dropout),
+            nn.Linear(config.hidden_dim, config.input_dim)
         )
+    
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Forward pass through vision adapter."""
+        # Apply feature adapter
+        features = self.adapters['feature_adapter'](x)
         
-        # Layer norm
-        self.vision_layer_norm = nn.LayerNorm(
-            config.hidden_size, 
-            eps=config.layer_norm_epsilon
-        )
+        # Apply spatial adapter
+        if x.dim() == 4:  # Image input
+            spatial_features = self.spatial_adapter(x)
+        else:
+            spatial_features = features.mean(dim=1)  # Fallback for 1D features
         
-        self._init_weights()
+        return features, spatial_features
+
+
+class MultiModalAdapter(nn.Module):
+    """Adapter for multi-modal models (text + vision)."""
+    
+    def __init__(self, 
+                 text_config: AdapterConfig,
+                 vision_config: AdapterConfig,
+                 fusion_method: str = "attention"):
+        super(MultiModalAdapter, self).__init__()
         
-    def _init_weights(self):
-        """Initialize vision adapter weights."""
-        nn.init.xavier_uniform_(self.patch_embedding.weight)
-        if self.patch_embedding.bias is not None:
-            nn.init.zeros_(self.patch_embedding.bias)
-            
-        nn.init.normal_(self.position_embeddings.weight, std=0.02)
+        self.fusion_method = fusion_method
         
-    def create_patches(self, images: torch.Tensor) -> torch.Tensor:
-        """Create patches from input images."""
-        batch_size = images.size(0)
+        # Text and vision adapters
+        self.text_adapter = LanguageAdapter(text_config)
+        self.vision_adapter = VisionAdapter(vision_config)
         
-        # Get patch embeddings
-        patch_embeds = self.patch_embedding(images)
-        patch_embeds = patch_embeds.flatten(2).transpose(1, 2)
+        # Fusion layers
+        if fusion_method == "attention":
+            self.fusion_layer = nn.MultiheadAttention(
+                embed_dim=text_config.input_dim,
+                num_heads=8,
+                dropout=text_config.dropout
+            )
+        elif fusion_method == "linear":
+            self.fusion_layer = nn.Linear(
+                text_config.input_dim + vision_config.input_dim,
+                text_config.input_dim
+            )
+        else:
+            self.fusion_layer = nn.Identity()
+    
+    def forward(self, 
+                text_features: torch.Tensor,
+                vision_features: torch.Tensor) -> torch.Tensor:
+        """Forward pass through multi-modal adapter."""
+        # Process text features
+        text_output = self.text_adapter(text_features)
         
-        # Add learnable patch embeddings
-        patch_embeds = patch_embeds + self.patch_embeddings
+        # Process vision features
+        if isinstance(vision_features, tuple):
+            vision_output = vision_features[0]  # Use main features
+        else:
+            vision_output = self.vision_adapter(vision_features)
         
-        return patch_embeds
+        # Fusion
+        if self.fusion_method == "attention":
+            # Cross-attention between text and vision
+            fused_output, _ = self.fusion_layer(
+                text_output, vision_output, vision_output
+            )
+        elif self.fusion_method == "linear":
+            # Concatenate and linearly fuse
+            combined = torch.cat([text_output, vision_output], dim=-1)
+            fused_output = self.fusion_layer(combined)
+        else:
+            # Simple addition
+            fused_output = text_output + vision_output
         
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Forward pass with vision-specific processing."""
-        batch_size = x.size(0)
-        
-        # Create patches
-        patch_embeds = self.create_patches(x)
-        
-        # Add class token
-        class_tokens = self.class_token.expand(batch_size, -1, -1)
-        tokens = torch.cat([class_tokens, patch_embeds], dim=1)
-        
-        # Add position embeddings
-        position_ids = torch.arange(
-            tokens.size(1), device=x.device
-        ).unsqueeze(0).expand(batch_size, -1)
-        
-        tokens = tokens + self.position_embeddings(position_ids)
-        
-        # Apply vision-specific processing
-        tokens = self.vision_layer_norm(tokens)
-        tokens = self.vision_adapter(tokens)
-        tokens = self.spatial_adapter(tokens)
-        
-        return tokens
+        return fused_output
 
 
 class AdapterModel(nn.Module):
-    """Model wrapper for adapter-based parameter-efficient fine-tuning."""
+    """Main model class that incorporates adapters for parameter-efficient fine-tuning."""
     
-    def __init__(self, base_model: nn.Module, config: AdapterConfig):
-        super().__init__()
+    def __init__(self, 
+                 base_model: nn.Module,
+                 adapter_configs: List[AdapterConfig],
+                 adapter_positions: List[str] = None,
+                 enable_adapter_dropout: bool = True):
+        """
+        Initialize model with adapters.
+        
+        Args:
+            base_model: Pre-trained base model
+            adapter_configs: List of adapter configurations
+            adapter_positions: Where to insert adapters (e.g., ['layer1', 'layer2'])
+            enable_adapter_dropout: Whether to enable adapter dropout during training
+        """
+        super(AdapterModel, self).__init__()
         
         self.base_model = base_model
-        self.config = config
-        self.adapters = nn.ModuleDict()
+        self.adapter_configs = adapter_configs
+        self.adapter_positions = adapter_positions or []
+        self.enable_adapter_dropout = enable_adapter_dropout
         
-        # Add default adapter if specified
-        if config.adapter_size > 0:
-            self.add_adapter('default')
-            
-    def add_adapter(self, name: str, adapter: Optional[BaseAdapter] = None):
-        """Add an adapter to the model."""
-        if adapter is None:
-            adapter = LinearAdapter(self.config)
-            
-        self.adapters[name] = adapter
+        # Freeze base model parameters
+        self.freeze_base_model()
         
-    def remove_adapter(self, name: str):
-        """Remove an adapter from the model."""
-        if name in self.adapters:
-            del self.adapters[name]
-            
-    def enable_adapters(self, names: List[str] = None):
-        """Enable specific adapters (set requires_grad to True)."""
-        adapters_to_enable = names or list(self.adapters.keys())
+        # Create adapters
+        self.adapters = nn.ModuleList()
+        for config in adapter_configs:
+            self.adapters.append(self._create_adapter(config))
         
-        for name in adapters_to_enable:
-            if name in self.adapters:
-                for param in self.adapters[name].parameters():
-                    param.requires_grad = True
-                    
-    def disable_adapters(self, names: List[str] = None):
-        """Disable specific adapters (set requires_grad to False)."""
-        adapters_to_disable = names or list(self.adapters.keys())
-        
-        for name in adapters_to_disable:
-            if name in self.adapters:
-                for param in self.adapters[name].parameters():
-                    param.requires_grad = False
-                    
+        # Adapter dropout probability
+        self.adapter_dropout_p = 0.1
+    
     def freeze_base_model(self):
-        """Freeze the base model parameters."""
+        """Freeze base model parameters to enable parameter-efficient fine-tuning."""
         for param in self.base_model.parameters():
             param.requires_grad = False
-            
+    
     def unfreeze_base_model(self):
-        """Unfreeze the base model parameters."""
+        """Unfreeze base model parameters (full fine-tuning)."""
         for param in self.base_model.parameters():
             param.requires_grad = True
-            
-    def get_num_adapter_parameters(self) -> Dict[str, int]:
-        """Get number of parameters for each adapter."""
-        counts = {}
-        for name, adapter in self.adapters.items():
-            counts[name] = adapter.get_num_parameters()
-        return counts
-        
-    def get_total_parameters(self) -> Tuple[int, int]:
-        """Get total and trainable parameter counts."""
-        total_params = sum(p.numel() for p in self.parameters())
-        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        
-        return total_params, trainable_params
-        
-    def forward(self, *args, **kwargs):
-        """Forward pass through base model with adapter processing."""
+    
+    def _create_adapter(self, config: AdapterConfig) -> nn.Module:
+        """Create adapter based on configuration."""
+        if config.adapter_type == AdapterType.LINEAR:
+            return LinearAdapter(config)
+        elif config.adapter_type == AdapterType.LORA:
+            return LoraAdapter(config.input_dim, config.output_dim, config.rank)
+        elif config.adapter_type == AdapterType.PREFIX_TUNING:
+            return PrefixTuningAdapter(config)
+        elif config.adapter_type == AdapterType.PROMPT_TUNING:
+            return PromptTuningAdapter(config)
+        elif config.adapter_type == AdapterType.ADDITIVE_ADAPTER:
+            return AdditiveAdapter(config)
+        elif config.adapter_type == AdapterType.SEQUENTIAL_ADAPTER:
+            # For sequential, create multiple sub-adapters
+            sub_configs = [config] * config.num_layers
+            return SequentialAdapter(sub_configs)
+        else:
+            # Default to linear adapter
+            return LinearAdapter(config)
+    
+    def forward(self, *args, **kwargs) -> torch.Tensor:
+        """Forward pass through the model with adapters."""
         # Get base model output
         base_output = self.base_model(*args, **kwargs)
         
-        # Apply adapters if they exist
-        if len(self.adapters) > 0:
-            # This is a simplified approach - in practice, you'd need to integrate
-            # adapters at specific points in the base model architecture
-            adapter_outputs = []
-            for adapter in self.adapters.values():
-                if isinstance(base_output, torch.Tensor):
-                    adapter_output = adapter(base_output)
-                    adapter_outputs.append(adapter_output)
-                    
-            if adapter_outputs:
-                # Combine adapter outputs with base output
-                combined_output = base_output + sum(adapter_outputs)
-                return combined_output
-                
+        # Apply adapters (simplified - in practice, you'd insert adapters at specific layers)
+        if self.adapters and self.training and self.enable_adapter_dropout:
+            # Apply adapter dropout during training
+            for adapter in self.adapters:
+                if isinstance(adapter, (LinearAdapter, LoraAdapter, AdditiveAdapter)):
+                    if torch.rand(1).item() < self.adapter_dropout_p:
+                        continue  # Skip this adapter
+                    else:
+                        # Apply adapter transformation
+                        if base_output.dim() > 1:  # Skip for 0D tensors
+                            base_output = base_output + adapter(base_output)
+        
         return base_output
+    
+    def get_trainable_parameters(self) -> List[torch.nn.Parameter]:
+        """Get parameters that are trainable (adapters only)."""
+        trainable_params = []
+        for adapter in self.adapters:
+            trainable_params.extend(adapter.parameters())
+        return trainable_params
+    
+    def get_parameter_count(self) -> Tuple[int, int]:
+        """Get total parameters and trainable parameters count."""
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.get_trainable_parameters())
+        
+        return total_params, trainable_params
+    
+    def save_adapters(self, path: str):
+        """Save only adapter weights."""
+        adapter_state_dict = {}
+        for i, adapter in enumerate(self.adapters):
+            adapter_state_dict[f'adapter_{i}'] = adapter.state_dict()
+        
+        torch.save(adapter_state_dict, path)
+    
+    def load_adapters(self, path: str, strict: bool = True):
+        """Load adapter weights."""
+        adapter_state_dict = torch.load(path, map_location='cpu')
+        
+        for i, adapter in enumerate(self.adapters):
+            adapter_key = f'adapter_{i}'
+            if adapter_key in adapter_state_dict:
+                adapter.load_state_dict(adapter_state_dict[adapter_key], strict=strict)
+    
+    def get_adapter_summary(self) -> Dict[str, Any]:
+        """Get summary of adapter configuration and statistics."""
+        total_params, trainable_params = self.get_parameter_count()
+        
+        summary = {
+            'base_model_params': total_params - trainable_params,
+            'adapter_params': trainable_params,
+            'total_params': total_params,
+            'trainable_percentage': (trainable_params / total_params) * 100,
+            'num_adapters': len(self.adapters),
+            'adapter_configs': [
+                {
+                    'type': config.adapter_type.value,
+                    'input_dim': config.input_dim,
+                    'hidden_dim': config.hidden_dim,
+                    'output_dim': config.output_dim
+                }
+                for config in self.adapter_configs
+            ]
+        }
+        
+        return summary
+
+
+# Utility functions for adapter training
+class AdapterTrainer:
+    """Trainer class for adapter-based fine-tuning."""
+    
+    def __init__(self, 
+                 model: AdapterModel,
+                 optimizer: torch.optim.Optimizer = None,
+                 scheduler: torch.optim.lr_scheduler._LRScheduler = None):
+        self.model = model
+        self.optimizer = optimizer or torch.optim.AdamW(
+            model.get_trainable_parameters(), lr=1e-4
+        )
+        self.scheduler = scheduler
+        
+        # Training metrics
+        self.train_losses = []
+        self.val_losses = []
+        self.best_val_loss = float('inf')
+    
+    def train_epoch(self, train_loader, device: str = 'cpu') -> float:
+        """Train for one epoch."""
+        self.model.train()
+        total_loss = 0
+        num_batches = 0
+        
+        for batch in train_loader:
+            # Move batch to device
+            batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
+                    for k, v in batch.items()}
+            
+            # Forward pass
+            outputs = self.model(**batch)
+            loss = outputs.loss
+            
+            # Backward pass
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            total_loss += loss.item()
+            num_batches += 1
+        
+        avg_loss = total_loss / num_batches
+        self.train_losses.append(avg_loss)
+        
+        return avg_loss
+    
+    def validate(self, val_loader, device: str = 'cpu') -> float:
+        """Validate the model."""
+        self.model.eval()
+        total_loss = 0
+        num_batches = 0
+        
+        with torch.no_grad():
+            for batch in val_loader:
+                # Move batch to device
+                batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v 
+                        for k, v in batch.items()}
+                
+                # Forward pass
+                outputs = self.model(**batch)
+                loss = outputs.loss
+                
+                total_loss += loss.item()
+                num_batches += 1
+        
+        avg_loss = total_loss / num_batches
+        self.val_losses.append(avg_loss)
+        
+        # Update best validation loss
+        if avg_loss < self.best_val_loss:
+            self.best_val_loss = avg_loss
+        
+        return avg_loss
+    
+    def train(self, 
+              train_loader,
+              val_loader = None,
+              num_epochs: int = 10,
+              device: str = 'cpu') -> Dict[str, List[float]]:
+        """Complete training loop."""
+        history = {
+            'train_loss': [],
+            'val_loss': []
+        }
+        
+        for epoch in range(num_epochs):
+            # Training
+            train_loss = self.train_epoch(train_loader, device)
+            history['train_loss'].append(train_loss)
+            
+            # Validation
+            if val_loader is not None:
+                val_loss = self.validate(val_loader, device)
+                history['val_loss'].append(val_loss)
+                
+                print(f"Epoch {epoch+1}/{num_epochs}: "
+                      f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            else:
+                print(f"Epoch {epoch+1}/{num_epochs}: Train Loss: {train_loss:.4f}")
+            
+            # Update learning rate
+            if self.scheduler is not None:
+                self.scheduler.step()
+        
+        return history
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    # Create a simple base model for testing
+    class SimpleModel(nn.Module):
+        def __init__(self, input_dim=512, output_dim=10):
+            super(SimpleModel, self).__init__()
+            self.linear = nn.Linear(input_dim, output_dim)
+        
+        def forward(self, x):
+            return self.linear(x)
+    
+    # Create adapter configurations
+    adapter_configs = [
+        AdapterConfig(
+            adapter_type=AdapterType.LINEAR,
+            input_dim=512,
+            hidden_dim=64,
+            output_dim=512
+        ),
+        AdapterConfig(
+            adapter_type=AdapterType.LORA,
+            input_dim=512,
+            output_dim=512,
+            rank=8
+        )
+    ]
+    
+    # Create base model and adapter model
+    base_model = SimpleModel()
+    adapter_model = AdapterModel(base_model, adapter_configs)
+    
+    # Print parameter counts
+    total_params, trainable_params = adapter_model.get_parameter_count()
+    print(f"Total parameters: {total_params:,}")
+    print(f"Trainable parameters: {trainable_params:,}")
+    print(f"Trainable percentage: {(trainable_params/total_params)*100:.2f}%")
+    
+    # Get adapter summary
+    summary = adapter_model.get_adapter_summary()
+    print("\nAdapter Summary:")
+    print(json.dumps(summary, indent=2))
+    
+    # Test forward pass
+    batch_size = 4
+    x = torch.randn(batch_size, 512)
+    output = adapter_model(x)
+    print(f"\nOutput shape: {output.shape}")
+    
+    # Test different adapter types
+    print("\nTesting different adapter types...")
+    
+    # Test LoRA adapter
+    lora_config = AdapterConfig(
+        adapter_type=AdapterType.LORA,
+        input_dim=128,
+        output_dim=128,
+        rank=4
+    )
+    lora_adapter = LoraAdapter(128, 128, rank=4)
+    test_input = torch.randn(2, 128)
+    lora_output = lora_adapter(test_input)
+    print(f"LoRA output shape: {lora_output.shape}")
+    
+    # Test Prefix tuning
+    prefix_config = AdapterConfig(
+        adapter_type=AdapterType.PREFIX_TUNING,
+        input_dim=256,
+        num_virtual_tokens=10
+    )
+    prefix_adapter = PrefixTuningAdapter(prefix_config)
+    prefix_prompt = prefix_adapter.get_prompt(batch_size=2)
+    print(f"Prefix tuning prompt shape: {prefix_prompt.shape}")
+    
+    print("\nAdapter module testing completed successfully!")
