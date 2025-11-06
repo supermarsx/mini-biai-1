@@ -112,6 +112,14 @@ class SSMConfig:
     spike_decay: float = 0.95
 
 
+class SSMHardwareType(Enum):
+    """Hardware types for SSM processing"""
+    AUTO = "auto"
+    CPU = "cpu"
+    CUDA = "cuda"
+    MPS = "mps"
+
+
 class SSMBackbone(nn.Module):
     """
     State Space Model Backbone for efficient sequence processing.
@@ -320,6 +328,36 @@ class SSMBackbone(nn.Module):
         except Exception as e:
             self.logger.error(f"SSM forward pass failed: {e}")
             raise RuntimeError(f"SSM computation failed: {e}")
+    
+    def get_memory_efficient_attention(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Compute memory-efficient attention using SSM formulation
+        
+        This implements linear attention through state space models
+        with O(N) memory complexity instead of O(N²)
+        """
+        try:
+            batch_size, seq_len, hidden_size = x.shape
+            
+            # Initialize state
+            state = torch.zeros(batch_size, self.config.state_size, hidden_size, device=self.device)
+            
+            # Process sequence
+            outputs = []
+            for i in range(seq_len):
+                # SSM step
+                state = self._ssm_step(state, x[:, i:i+1, :])
+                outputs.append(state)
+            
+            # Stack outputs
+            output = torch.cat(outputs, dim=1)
+            
+            return output
+            
+        except Exception as e:
+            self.logger.error(f"Memory-efficient attention failed: {e}")
+            # Fallback to standard forward pass
+            return self.forward(x)
 
 
 class SSMLayer(nn.Module):
@@ -328,6 +366,7 @@ class SSMLayer(nn.Module):
     def __init__(self, config: SSMConfig):
         super().__init__()
         self.config = config
+        self.device = torch.device("cpu")  # Default device
         
         # State space matrices
         self.A = nn.Parameter(torch.randn(config.state_size, config.state_size))
@@ -366,9 +405,52 @@ class SSMLayer(nn.Module):
                 self.A.fill_diagonal_(-0.5)
             
             # Initialize B, C, D matrices
+            # B: state_size x hidden_size
             nn.init.xavier_uniform_(self.B)
+            # C: hidden_size x state_size
             nn.init.xavier_uniform_(self.C)
+            # D: hidden_size x hidden_size
             nn.init.xavier_uniform_(self.D)
+    
+    def _ssm_step(self, state: torch.Tensor, input_token: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Single SSM step: state update and output computation"""
+        batch_size, seq_len, hidden_size = input_token.shape
+        batch_size_s, seq_len_s, state_size = state.shape
+        
+        # Ensure we have the right dimensions
+        assert batch_size == batch_size_s
+        assert seq_len == 1  # We're processing one token at a time
+        
+        # Reshape for simpler computation
+        input_vec = input_token.squeeze(1)  # (batch_size, hidden_size)
+        
+        # State update: new_state = A @ state + B @ input
+        # A: (state_size, state_size), state: (batch_size, state_size, hidden_size)
+        # For each hidden dimension, apply A transformation
+        state_flat = state.reshape(batch_size, state_size * hidden_size)  # (batch_size, state_size * hidden_size)
+        
+        # Apply A matrix to state (simplified)
+        A_state = torch.matmul(state_flat, self.A.t()).view(batch_size, state_size, hidden_size)
+        
+        # Apply B matrix to input
+        # B: (state_size, hidden_size), input: (batch_size, hidden_size)
+        B_input = torch.matmul(input_vec, self.B.t()).unsqueeze(1).expand(-1, state_size, -1)  # (batch_size, state_size, hidden_size)
+        
+        # Combine state updates
+        new_state = A_state + B_input
+        
+        # Output computation: output = C @ state + D @ input
+        # C: (hidden_size, state_size), state: (batch_size, state_size, hidden_size)
+        C_state = torch.matmul(state.transpose(1, 2), self.C.t())  # (batch_size, hidden_size, hidden_size)
+        C_output = C_state.mean(dim=2)  # Average across state dimension
+        
+        # D @ input: (hidden_size, hidden_size) @ (batch_size, hidden_size)
+        D_output = torch.matmul(input_vec, self.D.t())  # (batch_size, hidden_size)
+        
+        # Combine outputs
+        output = (C_output + D_output).unsqueeze(1)  # Add sequence dimension back
+        
+        return new_state, output
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -406,25 +488,6 @@ class SSMLayer(nn.Module):
         output = self.norm(output)
         
         return output
-    
-    def _ssm_step(self, state: torch.Tensor, input_token: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Single SSM step: state update and output computation"""
-        batch_size, seq_len, hidden_size = input_token.shape
-        input_vec = input_token.squeeze(1)  # (batch_size, hidden_size)
-        
-        # State update: new_state = A @ state + B @ input
-        state_flat = state.reshape(batch_size, self.config.state_size * hidden_size)
-        A_state = torch.matmul(state_flat, self.A.t()).view(batch_size, self.config.state_size, hidden_size)
-        B_input = torch.matmul(input_vec, self.B.t()).unsqueeze(1).expand(-1, self.config.state_size, -1)
-        new_state = A_state + B_input
-        
-        # Output computation: output = C @ state + D @ input
-        C_state = torch.matmul(state.transpose(1, 2), self.C.t())
-        C_output = C_state.mean(dim=2)
-        D_output = torch.matmul(input_vec, self.D.t())
-        output = (C_output + D_output).unsqueeze(1)
-        
-        return new_state, output
 
 
 class SpikingOutputLayer(nn.Module):
@@ -487,6 +550,52 @@ class SpikingOutputLayer(nn.Module):
             self.membrane_potential.zero_()
         if self.spike_history is not None:
             self.spike_history.zero_()
+
+
+class SSMPerformanceMonitor:
+    """Performance monitoring for SSM backbone"""
+    
+    def __init__(self):
+        self.metrics = {
+            'forward_time': [],
+            'memory_usage': [],
+            'throughput': [],
+            'accuracy': []
+        }
+        self.start_time = None
+    
+    def start_timing(self):
+        """Start timing measurement"""
+        self.start_time = time.time()
+    
+    def end_timing(self, seq_len: int):
+        """End timing and record metrics"""
+        if self.start_time is None:
+            return
+        
+        elapsed = time.time() - self.start_time
+        throughput = seq_len / elapsed
+        
+        self.metrics['forward_time'].append(elapsed)
+        self.metrics['throughput'].append(throughput)
+        
+        # Memory usage (if CUDA available)
+        if torch.cuda.is_available():
+            memory_mb = torch.cuda.memory_allocated() / (1024**2)
+            self.metrics['memory_usage'].append(memory_mb)
+        
+        self.start_time = None
+    
+    def get_summary(self) -> Dict[str, float]:
+        """Get performance summary"""
+        summary = {}
+        for key, values in self.metrics.items():
+            if values:
+                summary[f'{key}_avg'] = np.mean(values)
+                summary[f'{key}_min'] = np.min(values)
+                summary[f'{key}_max'] = np.max(values)
+        
+        return summary
 
 
 # Factory function for SSM backbone

@@ -53,7 +53,7 @@ Architecture (SSM/Linear-Attention Upgrade):
               ▼                       ▼
     ┌─────────────────────┬───────────────────────┐
     │   Spiking Layer     │   Memory Integration   │
-    │ (Biological realism)│   (Persistent state)  │
+    │ (Biological realism)│   (Persistent state)   │
     └─────────┬───────────┴───────────┬───────────┘
               │                       │
               ▼                       ▼
