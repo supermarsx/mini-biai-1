@@ -152,7 +152,7 @@ class SSMPerformanceOptimizer:
             stability_score=stability
         )
     
-    def benchmark_linear_attention_configuration(
+    def benchmark_linear_attention_configuration(self,
                                                config: LinearAttentionConfig,
                                                test_cases: List[Tuple[int, int]],
                                                num_runs: int = 5) -> BenchmarkResult:
@@ -238,7 +238,7 @@ class SSMPerformanceOptimizer:
             stability_score=stability
         )
     
-    def benchmark_hybrid_configuration(
+    def benchmark_hybrid_configuration(self,
                                      config: HybridProcessorConfig,
                                      test_cases: List[Tuple[int, int]],
                                      num_runs: int = 5) -> BenchmarkResult:

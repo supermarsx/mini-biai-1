@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Advanced Hybrid SSM-Linear Attention Architecture
 
@@ -23,7 +24,7 @@ Hybrid Architecture Foundation:
     │             │ │             │ │             │
     │ • O(N) seq  │ │ • Adaptive  │ │ • Biological│
     │ • Long-range│ │   attention │ │   realism   │
-    │ • Efficient │ │ • Query-KV  │ │ • Energy    │
+    │ • Efficient │ │ • Query-KV  │ │   Energy    │
     │   modeling  │ │   interaction│ │   efficiency│
     └─────────────┘ └─────────────┘ └─────────────┘
                           │
@@ -1268,4 +1269,4 @@ if __name__ == "__main__":
                 perf_summary = processor.get_performance_summary()
                 print(f"Performance: {perf_summary}")
     
-    asyncio.run(test_hybrid_processor())
+    asyncio.run(test_hybrid_processor()
