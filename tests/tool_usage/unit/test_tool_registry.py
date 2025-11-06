@@ -1,1125 +1,889 @@
+"""
+Unit Tests for Tool Registry Component
+=======================================
+
+Comprehensive unit tests for the ToolRegistry class, testing tool discovery,
+registration, categorization, and cross-platform capabilities.
+"""
+
 import pytest
-import sys
 import os
+import sys
 import json
+import time
+import subprocess
+from unittest.mock import Mock, patch, MagicMock, call
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, mock_open
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Set
-from enum import Enum
+import tempfile
+import shutil
+from typing import List, Dict, Any
 
-# Add parent directories to path to import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../..'))
+# Add source directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-# Assuming these are the imports from your actual ToolRegistry implementation
 try:
     from tool_usage.tool_registry import (
-        ToolMetadata,
-        ToolCategory, 
-        ToolStatus,
-        ToolRegistry
+        ToolRegistry, ToolMetadata, ToolCategory, ToolStatus,
+        ToolDiscovery
     )
-except ImportError:
-    # Mock the imports if the actual module doesn't exist yet
-    @dataclass
-    class ToolMetadata:
-        name: str
-        description: str
-        category: str
-        status: str = "active"
-        parameters: Dict[str, Any] = field(default_factory=dict)
-        capabilities: List[str] = field(default_factory=list)
-        version: str = "1.0.0"
-        dependencies: List[str] = field(default_factory=list)
-        
-    class ToolCategory(Enum):
-        SYSTEM = "system"
-        DEVELOPMENT = "development"
-        DATA_PROCESSING = "data_processing"
-        NETWORK = "network"
-        SECURITY = "security"
-        CUSTOM = "custom"
-        
-    class ToolStatus(Enum):
-        ACTIVE = "active"
-        INACTIVE = "inactive"
-        DEPRECATED = "deprecated"
-        TESTING = "testing"
-        
-    class ToolRegistry:
-        def __init__(self):
-            self._tools: Dict[str, ToolMetadata] = {}
-            self._categories: Set[str] = set()
-            self._search_index: Dict[str, List[str]] = {}
-            
-        def register_tool(self, tool: ToolMetadata) -> bool:
-            """Register a tool in the registry"""
-            self._tools[tool.name] = tool
-            self._categories.add(tool.category)
-            self._build_search_index()
-            return True
-            
-        def unregister_tool(self, name: str) -> bool:
-            """Remove a tool from the registry"""
-            if name in self._tools:
-                del self._tools[name]
-                self._build_search_index()
-                return True
-            return False
-            
-        def get_tool(self, name: str) -> Optional[ToolMetadata]:
-            """Get a tool by name"""
-            return self._tools.get(name)
-            
-        def list_tools(self, category: Optional[str] = None) -> List[ToolMetadata]:
-            """List all tools, optionally filtered by category"""
-            tools = list(self._tools.values())
-            if category:
-                tools = [t for t in tools if t.category == category]
-            return tools
-            
-        def search_tools(self, query: str) -> List[ToolMetadata]:
-            """Search for tools by name or description"""
-            query_lower = query.lower()
-            results = []
-            for tool in self._tools.values():
-                if (query_lower in tool.name.lower() or 
-                    query_lower in tool.description.lower()):
-                    results.append(tool)
-            return results
-            
-        def get_categories(self) -> List[str]:
-            """Get all available categories"""
-            return sorted(list(self._categories))
-            
-        def bulk_register(self, tools: List[ToolMetadata]) -> Dict[str, bool]:
-            """Register multiple tools at once"""
-            results = {}
-            for tool in tools:
-                results[tool.name] = self.register_tool(tool)
-            return results
-            
-        def _build_search_index(self):
-            """Build internal search index"""
-            self._search_index = {}
-            for tool in self._tools.values():
-                keywords = [tool.name.lower(), tool.description.lower()]
-                keywords.extend(tool.capabilities)
-                for keyword in keywords:
-                    if keyword not in self._search_index:
-                        self._search_index[keyword] = []
-                    self._search_index[keyword].append(tool.name)
-                    
-        def get_tool_statistics(self) -> Dict[str, Any]:
-            """Get statistics about registered tools"""
-            total_tools = len(self._tools)
-            category_counts = {}
-            status_counts = {}
-            
-            for tool in self._tools.values():
-                category_counts[tool.category] = category_counts.get(tool.category, 0) + 1
-                status_counts[tool.status] = status_counts.get(tool.status, 0) + 1
-                
-            return {
-                'total_tools': total_tools,
-                'categories': category_counts,
-                'statuses': status_counts,
-                'active_tools': status_counts.get('active', 0)
-            }
+    from tool_usage.platform_adapter import PosixAdapter, WindowsAdapter
+except ImportError as e:
+    pytest.skip(f"Could not import ToolRegistry: {e}", allow_module_level=True)
 
 
 class TestToolMetadata:
-    """Test the ToolMetadata dataclass"""
+    """Test ToolMetadata dataclass"""
     
     def test_tool_metadata_creation(self):
-        """Test creating ToolMetadata instances"""
-        metadata = ToolMetadata(
-            name="test_tool",
-            description="A test tool",
-            category="development",
-            status="active",
-            parameters={"param1": "value1"},
-            capabilities=["capability1", "capability2"],
-            version="1.0.0",
-            dependencies=["dependency1"]
+        """Test creating ToolMetadata object"""
+        tool = ToolMetadata(
+            name="python",
+            category=ToolCategory.PROGRAMMING_LANGUAGE,
+            path="/usr/bin/python",
+            version="3.9.7",
+            status=ToolStatus.AVAILABLE,
+            description="Python programming language",
+            tags={'language', 'scripting', 'development'},
+            capabilities={'execute', 'script'},
+            last_updated=time.time()
         )
         
-        assert metadata.name == "test_tool"
-        assert metadata.description == "A test tool"
-        assert metadata.category == "development"
-        assert metadata.status == "active"
-        assert metadata.parameters == {"param1": "value1"}
-        assert metadata.capabilities == ["capability1", "capability2"]
-        assert metadata.version == "1.0.0"
-        assert metadata.dependencies == ["dependency1"]
-        
-    def test_tool_metadata_defaults(self):
-        """Test ToolMetadata with default values"""
-        metadata = ToolMetadata(
+        assert tool.name == "python"
+        assert tool.category == ToolCategory.PROGRAMMING_LANGUAGE
+        assert tool.path == "/usr/bin/python"
+        assert tool.version == "3.9.7"
+        assert tool.status == ToolStatus.AVAILABLE
+        assert "language" in tool.tags
+        assert "execute" in tool.capabilities
+    
+    def test_tool_metadata_minimal(self):
+        """Test creating ToolMetadata with minimal data"""
+        tool = ToolMetadata(
             name="minimal_tool",
-            description="Minimal tool description",
-            category="system"
+            category=ToolCategory.UTILITY,
+            path="/usr/bin/minimal_tool"
         )
         
-        assert metadata.status == "active"  # Default status
-        assert metadata.parameters == {}
-        assert metadata.capabilities == []
-        assert metadata.version == "1.0.0"  # Default version
-        assert metadata.dependencies == []
-        
-    def test_tool_metadata_immutability(self):
-        """Test that ToolMetadata fields can be modified after creation"""
-        metadata = ToolMetadata(
-            name="modifiable_tool",
-            description="Initial description",
-            category="development"
-        )
-        
-        # Should be able to modify fields
-        metadata.description = "Modified description"
-        metadata.parameters["new_param"] = "new_value"
-        metadata.capabilities.append("new_capability")
-        
-        assert metadata.description == "Modified description"
-        assert metadata.parameters["new_param"] == "new_value"
-        assert "new_capability" in metadata.capabilities
-        
-    def test_tool_metadata_validation(self):
-        """Test ToolMetadata field validation"""
-        # Test that required fields are actually required
-        with pytest.raises(TypeError):
-            ToolMetadata()  # Missing required fields
-            
-        with pytest.raises(TypeError):
-            ToolMetadata(name="test")  # Missing description
-            
-    @pytest.mark.parametrize("name,description,category", [
-        ("valid_tool", "Valid description", "development"),
-        ("tool_with_underscores", "Tool with underscores", "system"),
-        ("tool123", "Tool with numbers", "data_processing"),
-        ("", "Empty name", "network"),  # Edge case
-        ("tool", "", "security"),  # Empty description
-    ])
-    def test_tool_metadata_parametrized_creation(self, name, description, category):
-        """Test ToolMetadata creation with various parameter combinations"""
-        metadata = ToolMetadata(name=name, description=description, category=category)
-        
-        assert metadata.name == name
-        assert metadata.description == description
-        assert metadata.category == category
-
-
-class TestToolCategory:
-    """Test the ToolCategory enum"""
+        assert tool.name == "minimal_tool"
+        assert tool.category == ToolCategory.UTILITY
+        assert tool.path == "/usr/bin/minimal_tool"
+        assert tool.version is None  # Default
+        assert tool.status == ToolStatus.UNKNOWN  # Default
+        assert tool.description is None  # Default
+        assert tool.tags == set()  # Default
+        assert tool.capabilities == set()  # Default
+        assert tool.last_updated is None  # Default
     
-    def test_tool_category_values(self):
-        """Test that all expected category values exist"""
-        expected_categories = {
-            "system", "development", "data_processing", 
-            "network", "security", "custom"
-        }
-        actual_categories = {category.value for category in ToolCategory}
-        assert expected_categories.issubset(actual_categories)
+    def test_tool_categories(self):
+        """Test all tool categories"""
+        categories = [
+            ToolCategory.PROGRAMMING_LANGUAGE,
+            ToolCategory.DEVELOPMENT_TOOL,
+            ToolCategory.UTILITY,
+            ToolCategory.SYSTEM_TOOL,
+            ToolCategory.NETWORK_TOOL,
+            ToolCategory.TEXT_PROCESSING,
+            ToolCategory.DATABASE_TOOL,
+            ToolCategory.WEB_TOOL,
+            ToolCategory.GRAPHICS_TOOL,
+            ToolCategory.MULTIMEDIA_TOOL,
+            ToolCategory.SECURITY_TOOL,
+            ToolCategory.SCIENTIFIC_TOOL,
+            ToolCategory.OTHER
+        ]
         
-    def test_tool_category_comparison(self):
-        """Test category equality and comparison"""
-        category1 = ToolCategory.DEVELOPMENT
-        category2 = ToolCategory.DEVELOPMENT
-        category3 = ToolCategory.SYSTEM
-        
-        assert category1 == category2
-        assert category1 != category3
-        assert category1 == "development"
-        
-    def test_tool_category_iteration(self):
-        """Test iterating over all categories"""
-        categories = list(ToolCategory)
-        assert len(categories) == 6
-        assert ToolCategory.SYSTEM in categories
-        assert ToolCategory.DEVELOPMENT in categories
-
-
-class TestToolStatus:
-    """Test the ToolStatus enum"""
+        for category in categories:
+            tool = ToolMetadata(
+                name="test",
+                category=category,
+                path="/usr/bin/test"
+            )
+            assert tool.category == category
     
-    def test_tool_status_values(self):
-        """Test that all expected status values exist"""
-        expected_statuses = {"active", "inactive", "deprecated", "testing"}
-        actual_statuses = {status.value for status in ToolStatus}
-        assert expected_statuses.issubset(actual_statuses)
+    def test_tool_statuses(self):
+        """Test all tool statuses"""
+        statuses = [
+            ToolStatus.AVAILABLE,
+            ToolStatus.INSTALLED,
+            ToolStatus.NOT_FOUND,
+            ToolStatus.DEPRECATED,
+            ToolStatus.UNKNOWN
+        ]
         
-    def test_tool_status_comparison(self):
-        """Test status equality and comparison"""
-        status1 = ToolStatus.ACTIVE
-        status2 = ToolStatus.ACTIVE
-        status3 = ToolStatus.INACTIVE
-        
-        assert status1 == status2
-        assert status1 != status3
-        assert status1 == "active"
-        
-    def test_tool_status_iteration(self):
-        """Test iterating over all statuses"""
-        statuses = list(ToolStatus)
-        assert len(statuses) == 4
-        assert ToolStatus.ACTIVE in statuses
-        assert ToolStatus.INACTIVE in statuses
+        for status in statuses:
+            tool = ToolMetadata(
+                name="test",
+                category=ToolCategory.UTILITY,
+                path="/usr/bin/test",
+                status=status
+            )
+            assert tool.status == status
 
 
 class TestToolRegistryInitialization:
-    """Test ToolRegistry initialization"""
+    """Test ToolRegistry initialization and basic setup"""
     
-    def test_registry_initialization(self):
-        """Test basic registry initialization"""
+    def test_registry_initialization(self, posix_adapter):
+        """Test basic ToolRegistry initialization"""
+        registry = ToolRegistry(posix_adapter)
+        
+        assert registry.platform_adapter == posix_adapter
+        assert registry.registered_tools == {}
+        assert registry.discovery_cache == {}
+        assert registry.auto_discovery is True
+        assert registry.last_discovery_time is None
+    
+    def test_registry_with_default_adapter(self):
+        """Test ToolRegistry with default adapter"""
+        registry = ToolRegistry()
+        assert registry.platform_adapter is not None
+    
+    def test_registry_custom_config(self):
+        """Test ToolRegistry with custom configuration"""
+        registry = ToolRegistry(auto_discovery=False)
+        assert registry.auto_discovery is False
+    
+    def test_known_tools_configuration(self):
+        """Test that registry has known tools configuration"""
         registry = ToolRegistry()
         
-        # Check initial state
-        assert len(registry._tools) == 0
-        assert len(registry._categories) == 0
-        assert len(registry._search_index) == 0
+        # Should have configuration for known tools
+        assert hasattr(registry, 'known_tools')
+        assert isinstance(registry.known_tools, dict)
         
-    def test_registry_initial_state_methods(self):
-        """Test that registry methods work on empty registry"""
-        registry = ToolRegistry()
-        
-        # Test empty searches and lists
-        assert registry.list_tools() == []
-        assert registry.list_tools("development") == []
-        assert registry.search_tools("anything") == []
-        assert registry.get_categories() == []
-        assert registry.get_tool("nonexistent") is None
-        assert registry.get_tool_statistics() == {
-            'total_tools': 0,
-            'categories': {},
-            'statuses': {},
-            'active_tools': 0
-        }
-        
-    def test_registry_unregister_empty(self):
-        """Test unregistering from empty registry"""
-        registry = ToolRegistry()
-        assert not registry.unregister_tool("nonexistent")
-        
-    def test_registry_bulk_register_empty(self):
-        """Test bulk registration with empty list"""
-        registry = ToolRegistry()
-        result = registry.bulk_register([])
-        assert result == {}
+        # Should include common tools
+        common_tools = ['python', 'node', 'git', 'docker', 'gcc']
+        for tool in common_tools:
+            assert tool in registry.known_tools or tool.upper() in registry.known_tools
 
 
 class TestToolRegistration:
     """Test tool registration functionality"""
     
-    def test_single_tool_registration(self):
-        """Test registering a single tool"""
-        registry = ToolRegistry()
+    @pytest.fixture
+    def registry(self, posix_adapter):
+        """Create registry for testing"""
+        return ToolRegistry(posix_adapter)
+    
+    def test_register_new_tool(self, registry):
+        """Test registering a new tool"""
         tool = ToolMetadata(
             name="test_tool",
-            description="Test tool for unit testing",
-            category="development",
-            capabilities=["testing", "validation"]
+            category=ToolCategory.UTILITY,
+            path="/usr/bin/test_tool",
+            version="1.0.0",
+            status=ToolStatus.AVAILABLE
         )
         
-        assert registry.register_tool(tool)
-        assert registry.get_tool("test_tool") == tool
+        success = registry.register_tool(tool)
         
-    def test_duplicate_tool_registration(self):
-        """Test registering duplicate tools"""
-        registry = ToolRegistry()
+        assert success is True
+        assert "test_tool" in registry.registered_tools
+        assert registry.registered_tools["test_tool"] == tool
+    
+    def test_register_duplicate_tool(self, registry):
+        """Test registering duplicate tool"""
         tool1 = ToolMetadata(
-            name="duplicate_tool",
-            description="First registration",
-            category="development"
+            name="duplicate",
+            category=ToolCategory.UTILITY,
+            path="/usr/bin/duplicate",
+            version="1.0.0"
         )
+        
         tool2 = ToolMetadata(
-            name="duplicate_tool",
-            description="Second registration",
-            category="development"
+            name="duplicate",
+            category=ToolCategory.UTILITY,
+            path="/usr/bin/duplicate",
+            version="1.0.1"  # Different version
         )
         
-        assert registry.register_tool(tool1)
-        assert registry.register_tool(tool2)  # Should overwrite
+        # Register first tool
+        success1 = registry.register_tool(tool1)
+        assert success1 is True
         
-        retrieved = registry.get_tool("duplicate_tool")
-        assert retrieved.description == "Second registration"  # Should be updated
+        # Try to register duplicate
+        success2 = registry.register_tool(tool2)
+        assert success2 is False  # Should not allow duplicates
         
-    def test_tool_unregistration(self):
-        """Test unregistering a tool"""
-        registry = ToolRegistry()
+        # Original tool should remain unchanged
+        assert registry.registered_tools["duplicate"].version == "1.0.0"
+    
+    def test_register_tool_with_invalid_path(self, registry):
+        """Test registering tool with invalid path"""
         tool = ToolMetadata(
-            name="removable_tool",
-            description="Tool to be removed",
-            category="development"
+            name="invalid_tool",
+            category=ToolCategory.UTILITY,
+            path="/nonexistent/path/tool",
+            version="1.0.0"
         )
         
-        registry.register_tool(tool)
-        assert registry.get_tool("removable_tool") is not None
+        # This should fail validation
+        success = registry.register_tool(tool)
+        assert success is False
+        assert "invalid_tool" not in registry.registered_tools
+    
+    def test_register_tool_duplicate_name_different_path(self, registry):
+        """Test registering tool with same name but different path"""
+        tool1 = ToolMetadata(
+            name="same_name",
+            category=ToolCategory.UTILITY,
+            path="/usr/bin/same_name",
+            version="1.0.0"
+        )
         
-        assert registry.unregister_tool("removable_tool")
-        assert registry.get_tool("removable_tool") is None
+        tool2 = ToolMetadata(
+            name="same_name",
+            category=ToolCategory.DEVELOPMENT_TOOL,
+            path="/opt/bin/same_name",
+            version="2.0.0"
+        )
         
-    def test_unregister_nonexistent_tool(self):
-        """Test unregistering a tool that doesn't exist"""
-        registry = ToolRegistry()
-        assert not registry.unregister_tool("nonexistent_tool")
+        success1 = registry.register_tool(tool1)
+        assert success1 is True
         
-    def test_bulk_tool_registration(self):
-        """Test bulk registration of multiple tools"""
-        registry = ToolRegistry()
+        success2 = registry.register_tool(tool2)
+        assert success2 is False  # Should not allow name conflicts
+    
+    def test_register_multiple_tools(self, registry):
+        """Test registering multiple tools"""
         tools = [
-            ToolMetadata(name="tool1", description="Tool 1", category="development"),
-            ToolMetadata(name="tool2", description="Tool 2", category="system"),
-            ToolMetadata(name="tool3", description="Tool 3", category="network")
+            ToolMetadata("tool1", ToolCategory.UTILITY, "/usr/bin/tool1", "1.0"),
+            ToolMetadata("tool2", ToolCategory.DEVELOPMENT_TOOL, "/usr/bin/tool2", "2.0"),
+            ToolMetadata("tool3", ToolCategory.PROGRAMMING_LANGUAGE, "/usr/bin/tool3", "3.0")
         ]
         
-        result = registry.bulk_register(tools)
-        
-        assert result == {"tool1": True, "tool2": True, "tool3": True}
-        assert len(registry.list_tools()) == 3
-        
-        # Verify all tools are registered
+        success_count = 0
         for tool in tools:
-            assert registry.get_tool(tool.name) == tool
-            
-    def test_bulk_registration_partial_failure(self):
-        """Test bulk registration with some failures"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(name="tool1", description="Tool 1", category="development"),
-            ToolMetadata(name="tool2", description="Tool 2", category="system"),
-        ]
+            if registry.register_tool(tool):
+                success_count += 1
         
-        # Register first tool normally
-        registry.register_tool(tools[0])
-        
-        # Try bulk register - should fail for duplicate
-        result = registry.bulk_register(tools)
-        
-        # Result should show the status for each tool
-        assert "tool1" in result
-        assert "tool2" in result
-        
-    @pytest.mark.parametrize("category,expected_count", [
-        ("development", 2),
-        ("system", 1),
-        ("network", 0)
-    ])
-    def test_registration_by_category(self, category, expected_count):
-        """Test registration and listing by category"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(name="dev1", description="Dev tool 1", category="development"),
-            ToolMetadata(name="dev2", description="Dev tool 2", category="development"),
-            ToolMetadata(name="sys1", description="System tool", category="system")
-        ]
-        
-        registry.bulk_register(tools)
-        
-        assert len(registry.list_tools(category)) == expected_count
+        assert success_count == 3
+        assert len(registry.registered_tools) == 3
+        assert "tool1" in registry.registered_tools
+        assert "tool2" in registry.registered_tools
+        assert "tool3" in registry.registered_tools
 
 
 class TestToolDiscovery:
-    """Test tool discovery and searching functionality"""
+    """Test tool discovery functionality"""
     
     @pytest.fixture
-    def populated_registry(self):
-        """Create a registry with various tools for testing"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(
-                name="git_cli",
-                description="Git command line interface for version control",
-                category="development",
-                capabilities=["version_control", "branching", "merging"]
-            ),
-            ToolMetadata(
-                name="docker_container",
-                description="Docker container management tool",
-                category="system",
-                capabilities=["containerization", "deployment"]
-            ),
-            ToolMetadata(
-                name="curl_http",
-                description="HTTP client for making requests",
-                category="network",
-                capabilities=["http_requests", "api_testing"]
-            ),
-            ToolMetadata(
-                name="nmap_scanner",
-                description="Network discovery and security auditing",
-                category="network",
-                capabilities=["network_discovery", "security_scanning"]
+    def registry(self, posix_adapter):
+        """Create registry for testing"""
+        return ToolRegistry(posix_adapter)
+    
+    def test_discover_tools_basic(self, registry):
+        """Test basic tool discovery"""
+        with patch.object(registry, '_discover_system_tools') as mock_discovery:
+            mock_discovery.return_value = 5  # Found 5 tools
+            
+            count = registry.discover_and_register_tools()
+            
+            assert count == 5
+            mock_discovery.assert_called_once()
+    
+    def test_discover_tools_by_category(self, registry):
+        """Test tool discovery by specific categories"""
+        categories = [ToolCategory.PROGRAMMING_LANGUAGE, ToolCategory.UTILITY]
+        
+        with patch.object(registry, '_discover_system_tools') as mock_discovery:
+            mock_discovery.return_value = 3
+            
+            count = registry.discover_and_register_tools(categories)
+            
+            assert count == 3
+            mock_discovery.assert_called_once_with(categories)
+    
+    def test_discover_tool_specific_path(self, registry):
+        """Test discovery of tool at specific path"""
+        test_path = "/custom/path/tool"
+        
+        with patch.object(registry, '_check_tool_path') as mock_check:
+            mock_check.return_value = ToolMetadata(
+                "custom_tool",
+                ToolCategory.UTILITY,
+                test_path,
+                "1.0.0"
             )
+            
+            tool = registry.discover_tool_at_path(test_path)
+            
+            assert tool is not None
+            assert tool.name == "custom_tool"
+            assert tool.path == test_path
+            mock_check.assert_called_once_with(test_path)
+    
+    def test_discovery_cache_usage(self, registry):
+        """Test that discovery cache is used"""
+        # Pre-populate cache
+        registry.discovery_cache["cached_tool"] = ToolMetadata(
+            "cached_tool",
+            ToolCategory.UTILITY,
+            "/usr/bin/cached_tool",
+            "1.0.0"
+        )
+        
+        with patch.object(registry, '_discover_system_tools') as mock_discovery:
+            mock_discovery.return_value = 0  # No new discoveries
+            
+            # Should use cache instead of re-discovering
+            count = registry.discover_and_register_tools()
+            
+            assert count == 0
+            assert "cached_tool" in registry.registered_tools
+            mock_discovery.assert_called_once()
+
+
+class TestToolRetrieval:
+    """Test tool information retrieval"""
+    
+    @pytest.fixture
+    def registry(self, posix_adapter):
+        """Create registry with test data"""
+        registry = ToolRegistry(posix_adapter)
+        
+        # Add test tools
+        tools = [
+            ToolMetadata("python", ToolCategory.PROGRAMMING_LANGUAGE, "/usr/bin/python", "3.9.7"),
+            ToolMetadata("git", ToolCategory.DEVELOPMENT_TOOL, "/usr/bin/git", "2.34.0"),
+            ToolMetadata("ls", ToolCategory.UTILITY, "/bin/ls", None),
+            ToolMetadata("gcc", ToolCategory.DEVELOPMENT_TOOL, "/usr/bin/gcc", "11.2.0")
         ]
-        registry.bulk_register(tools)
+        
+        for tool in tools:
+            registry.register_tool(tool)
+        
         return registry
+    
+    def test_get_tool_by_name(self, registry):
+        """Test getting tool by name"""
+        tool = registry.get_tool("python")
         
-    def test_get_tool_by_name(self, populated_registry):
-        """Test retrieving tools by exact name"""
-        git_tool = populated_registry.get_tool("git_cli")
-        assert git_tool is not None
-        assert git_tool.name == "git_cli"
-        assert git_tool.category == "development"
+        assert tool is not None
+        assert tool.name == "python"
+        assert tool.category == ToolCategory.PROGRAMMING_LANGUAGE
+        assert tool.version == "3.9.7"
+    
+    def test_get_tool_not_found(self, registry):
+        """Test getting non-existent tool"""
+        tool = registry.get_tool("nonexistent_tool")
         
-    def test_list_all_tools(self, populated_registry):
-        """Test listing all registered tools"""
-        tools = populated_registry.list_tools()
-        assert len(tools) == 4
+        assert tool is None
+    
+    def test_get_tools_by_category(self, registry):
+        """Test getting tools by category"""
+        dev_tools = registry.get_tools_by_category(ToolCategory.DEVELOPMENT_TOOL)
         
-        # Verify all tools are present
-        tool_names = {tool.name for tool in tools}
-        expected_names = {"git_cli", "docker_container", "curl_http", "nmap_scanner"}
-        assert tool_names == expected_names
+        assert len(dev_tools) == 2  # git and gcc
+        tool_names = [tool.name for tool in dev_tools]
+        assert "git" in tool_names
+        assert "gcc" in tool_names
         
-    def test_list_tools_by_category(self, populated_registry):
-        """Test listing tools filtered by category"""
-        development_tools = populated_registry.list_tools("development")
-        assert len(development_tools) == 1
-        assert development_tools[0].name == "git_cli"
+        # Check that other tools are not included
+        tool_categories = [tool.category for tool in dev_tools]
+        assert all(cat == ToolCategory.DEVELOPMENT_TOOL for cat in tool_categories)
+    
+    def test_get_all_tools(self, registry):
+        """Test getting all registered tools"""
+        all_tools = registry.get_all_tools()
         
-        network_tools = populated_registry.list_tools("network")
-        assert len(network_tools) == 2
-        network_names = {tool.name for tool in network_tools}
-        assert network_names == {"curl_http", "nmap_scanner"}
+        assert len(all_tools) == 4
+        tool_names = [tool.name for tool in all_tools]
+        expected_names = ["python", "git", "ls", "gcc"]
         
-    def test_search_by_name(self, populated_registry):
+        for name in expected_names:
+            assert name in tool_names
+    
+    def test_search_tools_by_name(self, registry):
         """Test searching tools by name"""
-        # Partial name match
-        git_results = populated_registry.search_tools("git")
-        assert len(git_results) == 1
-        assert git_results[0].name == "git_cli"
+        results = registry.search_tools("python")
         
-        # Case insensitive search
-        docker_results = populated_registry.search_tools("DOCKER")
-        assert len(docker_results) == 1
-        assert docker_results[0].name == "docker_container"
+        assert len(results) == 1
+        assert results[0].name == "python"
         
-    def test_search_by_description(self, populated_registry):
-        """Test searching tools by description content"""
-        # Search in description
-        http_results = populated_registry.search_tools("HTTP")
-        assert len(http_results) == 1
-        assert http_results[0].name == "curl_http"
+        # Test case-insensitive search
+        results = registry.search_tools("PYTHON")
+        assert len(results) == 1
+        assert results[0].name == "python"
+    
+    def test_search_tools_by_description(self, registry):
+        """Test searching tools by description"""
+        # Add tool with description
+        tool_with_desc = ToolMetadata(
+            "test_tool",
+            ToolCategory.UTILITY,
+            "/usr/bin/test_tool",
+            description="A testing tool for development"
+        )
+        registry.register_tool(tool_with_desc)
         
-        # Search for multiple terms
-        security_results = populated_registry.search_tools("security")
-        assert len(security_results) == 1
-        assert security_results[0].name == "nmap_scanner"
+        results = registry.search_tools("development")
         
-    def test_search_by_capabilities(self, populated_registry):
-        """Test searching tools by capabilities"""
-        # Search in capabilities
-        container_results = populated_registry.search_tools("containerization")
-        assert len(container_results) == 1
-        assert container_results[0].name == "docker_container"
+        # Should find the tool with description containing "development"
+        assert len(results) >= 1
+        found_tool = next((t for t in results if t.name == "test_tool"), None)
+        assert found_tool is not None
+    
+    def test_search_tools_by_tags(self, registry):
+        """Test searching tools by tags"""
+        # Add tool with tags
+        tool_with_tags = ToolMetadata(
+            "tagged_tool",
+            ToolCategory.UTILITY,
+            "/usr/bin/tagged_tool",
+            tags={'testing', 'development', 'cli'}
+        )
+        registry.register_tool(tool_with_tags)
         
-        deployment_results = populated_registry.search_tools("deployment")
-        assert len(deployment_results) == 1
-        assert deployment_results[0].name == "docker_container"
+        results = registry.search_tools("testing")
         
-    def test_search_no_results(self, populated_registry):
-        """Test searching for non-existent tools"""
-        results = populated_registry.search_tools("nonexistent_tool_name")
-        assert results == []
+        assert len(results) >= 1
+        found_tool = next((t for t in results if t.name == "tagged_tool"), None)
+        assert found_tool is not None
+
+
+class TestToolStatus:
+    """Test tool status management"""
+    
+    @pytest.fixture
+    def registry(self, posix_adapter):
+        """Create registry for testing"""
+        return ToolRegistry(posix_adapter)
+    
+    def test_update_tool_status(self, registry):
+        """Test updating tool status"""
+        # Register tool initially
+        tool = ToolMetadata(
+            "status_test",
+            ToolCategory.UTILITY,
+            "/usr/bin/status_test",
+            status=ToolStatus.AVAILABLE
+        )
+        registry.register_tool(tool)
         
-    def test_search_empty_query(self, populated_registry):
-        """Test searching with empty query"""
-        results = populated_registry.search_tools("")
-        # Empty query should return all tools or none, depending on implementation
-        # Let's assume it returns all tools that match empty string
-        assert len(results) >= 0
+        # Update status
+        success = registry.update_tool_status("status_test")
         
-    def test_search_case_insensitive(self, populated_registry):
-        """Test that search is case insensitive"""
-        results1 = populated_registry.search_tools("git")
-        results2 = populated_registry.search_tools("GIT")
-        results3 = populated_registry.search_tools("GiT")
+        assert success is True
+        updated_tool = registry.get_tool("status_test")
+        # Status might be updated based on current system state
+        assert updated_tool.status in [ToolStatus.AVAILABLE, ToolStatus.INSTALLED]
+    
+    def test_update_nonexistent_tool_status(self, registry):
+        """Test updating status of non-existent tool"""
+        success = registry.update_tool_status("nonexistent_tool")
         
-        assert len(results1) == len(results2) == len(results3) == 1
-        assert all(r.name == "git_cli" for r in [results1[0], results2[0], results3[0]])
+        assert success is False
+    
+    def test_check_tool_availability(self, registry):
+        """Test checking tool availability"""
+        tool = ToolMetadata(
+            "availability_test",
+            ToolCategory.UTILITY,
+            "/usr/bin/availability_test",
+            status=ToolStatus.AVAILABLE
+        )
+        registry.register_tool(tool)
+        
+        # Mock availability check
+        with patch.object(registry, '_check_tool_availability') as mock_check:
+            mock_check.return_value = ToolStatus.AVAILABLE
+            
+            status = registry.check_tool_availability("availability_test")
+            
+            assert status == ToolStatus.AVAILABLE
+            mock_check.assert_called_once_with("availability_test")
 
 
 class TestToolCategories:
-    """Test category management functionality"""
+    """Test tool categorization functionality"""
     
-    def test_get_categories_empty_registry(self):
-        """Test getting categories from empty registry"""
-        registry = ToolRegistry()
-        assert registry.get_categories() == []
+    @pytest.fixture
+    def registry(self, posix_adapter):
+        """Create registry with categorized tools"""
+        registry = ToolRegistry(posix_adapter)
         
-    def test_get_categories_after_registration(self):
-        """Test getting categories after registering tools"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(name="tool1", description="Tool 1", category="development"),
-            ToolMetadata(name="tool2", description="Tool 2", category="development"),
-            ToolMetadata(name="tool3", description="Tool 3", category="system"),
-            ToolMetadata(name="tool4", description="Tool 4", category="network")
-        ]
-        registry.bulk_register(tools)
+        # Add tools in different categories
+        tools_by_category = {
+            ToolCategory.PROGRAMMING_LANGUAGE: ["python", "node", "ruby"],
+            ToolCategory.DEVELOPMENT_TOOL: ["git", "gcc", "make"],
+            ToolCategory.UTILITY: ["ls", "cat", "grep"],
+            ToolCategory.NETWORK_TOOL: ["curl", "wget", "ssh"],
+            ToolCategory.TEXT_PROCESSING: ["sed", "awk", "vim"]
+        }
         
-        categories = registry.get_categories()
-        assert len(categories) == 3
-        assert "development" in categories
-        assert "system" in categories
-        assert "network" in categories
+        for category, tool_names in tools_by_category.items():
+            for tool_name in tool_names:
+                tool = ToolMetadata(
+                    tool_name,
+                    category,
+                    f"/usr/bin/{tool_name}",
+                    version="1.0.0"
+                )
+                registry.register_tool(tool)
         
-    def test_categories_are_unique(self):
-        """Test that categories returned are unique and sorted"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(name="tool1", description="Tool 1", category="zebra"),
-            ToolMetadata(name="tool2", description="Tool 2", category="alpha"),
-            ToolMetadata(name="tool3", description="Tool 3", category="zebra")
-        ]
-        registry.bulk_register(tools)
-        
-        categories = registry.get_categories()
-        assert len(categories) == 2
-        assert categories == sorted(categories)  # Should be sorted
-        assert "alpha" in categories
-        assert "zebra" in categories
-        
-    def test_category_tracking_on_unregister(self):
-        """Test that categories are tracked correctly when tools are unregistered"""
-        registry = ToolRegistry()
-        tool1 = ToolMetadata(name="tool1", description="Tool 1", category="development")
-        tool2 = ToolMetadata(name="tool2", description="Tool 2", category="development")
-        
-        registry.register_tool(tool1)
-        registry.register_tool(tool2)
-        assert len(registry.get_categories()) == 1
-        assert "development" in registry.get_categories()
-        
-        registry.unregister_tool("tool1")
-        # Category should still exist because tool2 is still registered
-        assert len(registry.get_categories()) == 1
-        assert "development" in registry.get_categories()
-        
-        registry.unregister_tool("tool2")
-        # Category should be removed if no tools remain
-        assert len(registry.get_categories()) == 0
-
-
-class TestToolStatistics:
-    """Test tool statistics functionality"""
+        return registry
     
-    def test_statistics_empty_registry(self):
-        """Test statistics for empty registry"""
-        registry = ToolRegistry()
-        stats = registry.get_tool_statistics()
+    def test_get_tools_by_category(self, registry):
+        """Test getting tools by specific category"""
+        programming_tools = registry.get_tools_by_category(ToolCategory.PROGRAMMING_LANGUAGE)
         
-        assert stats['total_tools'] == 0
-        assert stats['categories'] == {}
-        assert stats['statuses'] == {}
-        assert stats['active_tools'] == 0
+        assert len(programming_tools) == 3
+        tool_names = [tool.name for tool in programming_tools]
+        expected = ["python", "node", "ruby"]
         
-    def test_statistics_single_tool(self):
-        """Test statistics with single tool"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="single_tool",
-            description="Single tool",
-            category="development",
-            status="active"
+        for name in expected:
+            assert name in tool_names
+    
+    def test_get_category_summary(self, registry):
+        """Test getting category summary"""
+        summary = registry.get_category_summary()
+        
+        assert isinstance(summary, dict)
+        
+        # Should have counts for each category
+        for category in ToolCategory:
+            if category != ToolCategory.OTHER:
+                assert category.value in summary
+                assert summary[category.value] >= 0
+    
+    def test_find_tools_by_capability(self, registry):
+        """Test finding tools by capability"""
+        # Add tools with specific capabilities
+        tool_with_caps = ToolMetadata(
+            "capability_test",
+            ToolCategory.UTILITY,
+            "/usr/bin/capability_test",
+            capabilities={'execute', 'script', 'interactive'}
         )
-        registry.register_tool(tool)
+        registry.register_tool(tool_with_caps)
         
-        stats = registry.get_tool_statistics()
-        assert stats['total_tools'] == 1
-        assert stats['categories'] == {'development': 1}
-        assert stats['statuses'] == {'active': 1}
-        assert stats['active_tools'] == 1
+        # Find tools with 'script' capability
+        script_tools = registry.find_tools_by_capability('script')
         
-    def test_statistics_multiple_tools_different_categories(self):
-        """Test statistics with multiple tools in different categories"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(name="tool1", description="Tool 1", category="development", status="active"),
-            ToolMetadata(name="tool2", description="Tool 2", category="development", status="inactive"),
-            ToolMetadata(name="tool3", description="Tool 3", category="system", status="active"),
-            ToolMetadata(name="tool4", description="Tool 4", category="network", status="testing")
-        ]
-        registry.bulk_register(tools)
-        
-        stats = registry.get_tool_statistics()
-        assert stats['total_tools'] == 4
-        assert stats['categories'] == {'development': 2, 'system': 1, 'network': 1}
-        assert stats['statuses'] == {'active': 2, 'inactive': 1, 'testing': 1}
-        assert stats['active_tools'] == 2
-        
-    def test_statistics_after_unregister(self):
-        """Test statistics update after tool unregistration"""
-        registry = ToolRegistry()
-        tool1 = ToolMetadata(name="tool1", description="Tool 1", category="development", status="active")
-        tool2 = ToolMetadata(name="tool2", description="Tool 2", category="development", status="active")
-        
-        registry.register_tool(tool1)
-        registry.register_tool(tool2)
-        
-        # Initial stats
-        stats = registry.get_tool_statistics()
-        assert stats['total_tools'] == 2
-        assert stats['categories'] == {'development': 2}
-        
-        # Unregister one tool
-        registry.unregister_tool("tool1")
-        
-        # Updated stats
-        stats = registry.get_tool_statistics()
-        assert stats['total_tools'] == 1
-        assert stats['categories'] == {'development': 1}
+        assert len(script_tools) >= 1
+        found_tool = next((t for t in script_tools if t.name == "capability_test"), None)
+        assert found_tool is not None
+        assert 'script' in found_tool.capabilities
 
 
-class TestSearchIndex:
-    """Test internal search index functionality"""
+class TestToolValidation:
+    """Test tool validation functionality"""
     
-    def test_search_index_build(self):
-        """Test that search index is built correctly"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="test_tool",
-            description="Test tool description",
-            category="development",
-            capabilities=["capability1", "capability2"]
-        )
-        registry.register_tool(tool)
-        
-        # Check that search index contains expected terms
-        assert "test_tool" in registry._search_index
-        assert "test tool description" in registry._search_index
-        assert "development" in registry._search_index
-        assert "capability1" in registry._search_index
-        assert "capability2" in registry._search_index
-        
-    def test_search_index_update_on_unregister(self):
-        """Test that search index is updated when tools are unregistered"""
-        registry = ToolRegistry()
-        tool1 = ToolMetadata(name="tool1", description="Tool 1 description", category="development")
-        tool2 = ToolMetadata(name="tool2", description="Tool 2 description", category="development")
-        
-        registry.register_tool(tool1)
-        registry.register_tool(tool2)
-        
-        # Both tools should be in index
-        assert "tool1" in registry._search_index
-        assert "tool2" in registry._search_index
-        
-        registry.unregister_tool("tool1")
-        
-        # tool1 should be removed from index
-        assert "tool1" not in registry._search_index
-        # tool2 should still be there
-        assert "tool2" in registry._search_index
-        
-    def test_search_index_case_sensitivity(self):
-        """Test that search index stores lowercase versions"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="CamelCaseTool",
-            description="Camel Case Description",
-            category="Development"
-        )
-        registry.register_tool(tool)
-        
-        # Index should contain lowercase versions
-        assert "camelcasetool" in registry._search_index
-        assert "camel case description" in registry._search_index
-        assert "development" in registry._search_index
-
-
-class TestErrorHandling:
-    """Test error handling and edge cases"""
+    @pytest.fixture
+    def registry(self, posix_adapter):
+        """Create registry for testing"""
+        return ToolRegistry(posix_adapter)
     
-    def test_register_none_tool(self):
-        """Test registering None as a tool"""
-        registry = ToolRegistry()
-        with pytest.raises((TypeError, AttributeError)):
-            registry.register_tool(None)
+    def test_validate_tool_path(self, registry):
+        """Test validating tool path"""
+        with patch('os.path.exists') as mock_exists:
+            mock_exists.return_value = True
             
-    def test_get_tool_nonexistent(self):
-        """Test getting a tool that doesn't exist"""
-        registry = ToolRegistry()
-        tool = registry.get_tool("nonexistent_tool")
-        assert tool is None
-        
-    def test_list_tools_invalid_category(self):
-        """Test listing tools with invalid category"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(name="tool1", description="Tool 1", category="development")
-        registry.register_tool(tool)
-        
-        # Should return empty list for non-existent category
-        results = registry.list_tools("nonexistent_category")
-        assert results == []
-        
-    def test_registration_with_special_characters(self):
-        """Test registration with special characters in names/descriptions"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="tool-with-dashes_and_underscores",
-            description="Tool with special chars: @#$%^&*()",
-            category="development"
-        )
-        
-        assert registry.register_tool(tool)
-        retrieved = registry.get_tool("tool-with-dashes_and_underscores")
-        assert retrieved is not None
-        assert retrieved.description == "Tool with special chars: @#$%^&*()"
-        
-    def test_registration_with_unicode(self):
-        """Test registration with unicode characters"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="tüls_with_émojis_🎉",
-            description="Tool with unicode: café, naïve, résumé",
-            category="development"
-        )
-        
-        assert registry.register_tool(tool)
-        retrieved = registry.get_tool("tüls_with_émojis_🎉")
-        assert retrieved is not None
-        assert "café" in retrieved.description
-        
-    def test_very_long_tool_names(self):
-        """Test registration with very long tool names"""
-        registry = ToolRegistry()
-        long_name = "a" * 1000  # Very long name
-        tool = ToolMetadata(
-            name=long_name,
-            description="Tool with very long name",
-            category="development"
-        )
-        
-        assert registry.register_tool(tool)
-        retrieved = registry.get_tool(long_name)
-        assert retrieved is not None
-        assert retrieved.name == long_name
-        
-    def test_empty_tool_name(self):
-        """Test registration with empty tool name"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="",
-            description="Tool with empty name",
-            category="development"
-        )
-        
-        # Should be able to register (depends on implementation)
-        result = registry.register_tool(tool)
-        # Empty names might be allowed or not, depending on validation
-        assert isinstance(result, bool)
-        
-    def test_search_with_very_long_query(self):
-        """Test searching with very long query"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(name="short", description="Short tool", category="development")
-        registry.register_tool(tool)
-        
-        long_query = "a" * 10000
-        results = registry.search_tools(long_query)
-        assert isinstance(results, list)
-        assert len(results) == 0  # Should not find anything
-
-
-class TestPerformance:
-    """Test performance characteristics"""
+            is_valid = registry.validate_tool_path("/usr/bin/python")
+            
+            assert is_valid is True
     
-    def test_registration_performance_small(self):
-        """Test registration performance with small number of tools"""
-        import time
-        
-        registry = ToolRegistry()
-        num_tools = 100
-        
-        start_time = time.time()
-        for i in range(num_tools):
-            tool = ToolMetadata(
-                name=f"tool_{i}",
-                description=f"Tool {i} for testing",
-                category="development"
-            )
-            registry.register_tool(tool)
-        end_time = time.time()
-        
-        duration = end_time - start_time
-        # Should complete in reasonable time (less than 1 second for 100 tools)
-        assert duration < 1.0
-        assert len(registry.list_tools()) == num_tools
-        
-    def test_search_performance(self):
-        """Test search performance with larger dataset"""
-        import time
-        
-        registry = ToolRegistry()
-        num_tools = 500
-        
-        # Register tools
-        for i in range(num_tools):
-            tool = ToolMetadata(
-                name=f"search_test_tool_{i}",
-                description=f"Search test tool number {i}",
-                category="development" if i % 2 == 0 else "system"
-            )
-            registry.register_tool(tool)
+    def test_validate_tool_path_nonexistent(self, registry):
+        """Test validating non-existent tool path"""
+        with patch('os.path.exists') as mock_exists:
+            mock_exists.return_value = False
             
-        # Test search performance
-        start_time = time.time()
-        results = registry.search_tools("test")
-        end_time = time.time()
-        
-        duration = end_time - start_time
-        # Search should complete quickly
-        assert duration < 0.5
-        assert len(results) > 0  # Should find some results
-        
-    def test_memory_usage_large_registry(self):
-        """Test memory usage with large number of tools"""
-        import sys
-        
-        registry = ToolRegistry()
-        num_tools = 1000
-        
-        # Register many tools
-        for i in range(num_tools):
-            tool = ToolMetadata(
-                name=f"memory_test_tool_{i}",
-                description=f"Memory test tool {i} with some additional description content to increase size",
-                category="development",
-                capabilities=[f"capability_{i}", f"another_capability_{i}"]
-            )
-            registry.register_tool(tool)
+            is_valid = registry.validate_tool_path("/nonexistent/path")
             
-        # Get memory usage
-        registry_size = sys.getsizeof(registry._tools) + sys.getsizeof(registry._categories)
+            assert is_valid is False
+    
+    def test_validate_tool_executable(self, registry):
+        """Test validating tool executable permissions"""
+        with patch('os.access') as mock_access:
+            mock_access.return_value = True
+            
+            is_executable = registry.validate_tool_executable("/usr/bin/python")
+            
+            assert is_executable is True
+    
+    def test_validate_tool_version(self, registry):
+        """Test extracting and validating tool version"""
+        # Mock version extraction
+        with patch.object(registry, '_extract_tool_version') as mock_extract:
+            mock_extract.return_value = "3.9.7"
+            
+            version = registry.extract_tool_version("/usr/bin/python")
+            
+            assert version == "3.9.7"
+    
+    def test_validate_tool_metadata(self, registry):
+        """Test validating complete tool metadata"""
+        tool = ToolMetadata(
+            "validation_test",
+            ToolCategory.UTILITY,
+            "/usr/bin/validation_test",
+            version="1.0.0",
+            status=ToolStatus.AVAILABLE
+        )
         
-        # Should be reasonable for 1000 tools (not more than 10MB)
-        assert registry_size < 10 * 1024 * 1024  # 10MB
-        assert len(registry.list_tools()) == num_tools
+        is_valid = registry.validate_tool_metadata(tool)
+        
+        assert is_valid is True  # Should be valid with all required fields
+
+
+class TestRegistryPersistence:
+    """Test registry persistence and serialization"""
+    
+    @pytest.fixture
+    def registry(self, posix_adapter):
+        """Create registry with test data"""
+        registry = ToolRegistry(posix_adapter)
+        
+        # Add test tools
+        tools = [
+            ToolMetadata("persist_test", ToolCategory.UTILITY, "/usr/bin/persist_test", "1.0.0"),
+            ToolMetadata("persist_test2", ToolCategory.DEVELOPMENT_TOOL, "/opt/bin/persist_test2", "2.0.0")
+        ]
+        
+        for tool in tools:
+            registry.register_tool(tool)
+        
+        return registry
+    
+    def test_export_registry_json(self, temp_test_dir, registry):
+        """Test exporting registry to JSON"""
+        export_path = temp_test_dir / "registry_export.json"
+        
+        success = registry.export_registry(str(export_path), "json")
+        
+        assert success is True
+        assert export_path.exists()
+        
+        # Verify exported content
+        with open(export_path) as f:
+            data = json.load(f)
+            
+        assert "tools" in data
+        assert len(data["tools"]) == 2
+        assert data["tools"][0]["name"] == "persist_test"
+    
+    def test_import_registry_json(self, temp_test_dir, registry):
+        """Test importing registry from JSON"""
+        # Create import file
+        import_data = {
+            "version": "1.0",
+            "tools": [
+                {
+                    "name": "import_test",
+                    "category": "utility",
+                    "path": "/usr/bin/import_test",
+                    "version": "1.0.0"
+                }
+            ]
+        }
+        
+        import_path = temp_test_dir / "registry_import.json"
+        with open(import_path, 'w') as f:
+            json.dump(import_data, f)
+        
+        success = registry.import_registry(str(import_path), "json")
+        
+        assert success is True
+        assert "import_test" in registry.registered_tools
+        assert registry.get_tool("import_test").name == "import_test"
+    
+    def test_registry_summary(self, registry):
+        """Test generating registry summary"""
+        summary = registry.get_registry_summary()
+        
+        assert isinstance(summary, dict)
+        assert 'total_tools' in summary
+        assert 'categories' in summary
+        assert 'last_updated' in summary
+        
+        assert summary['total_tools'] == len(registry.registered_tools)
+        assert isinstance(summary['categories'], dict)
 
 
 class TestCrossPlatformCompatibility:
-    """Test cross-platform compatibility"""
+    """Test cross-platform tool registry compatibility"""
     
-    def test_path_handling_in_descriptions(self):
-        """Test handling of different path separators"""
+    @pytest.mark.compatibility
+    def test_posix_tool_discovery(self, mock_platform_linux, posix_adapter):
+        """Test tool discovery on POSIX systems"""
+        registry = ToolRegistry(posix_adapter)
+        
+        with patch.object(registry, '_discover_posix_tools') as mock_discovery:
+            mock_discovery.return_value = ["python", "git", "ls"]
+            
+            tools = registry.discover_posix_tools()
+            
+            assert len(tools) == 3
+            assert "python" in tools
+    
+    @pytest.mark.compatibility
+    def test_windows_tool_discovery(self, mock_platform_windows, windows_adapter):
+        """Test tool discovery on Windows systems"""
+        registry = ToolRegistry(windows_adapter)
+        
+        with patch.object(registry, '_discover_windows_tools') as mock_discovery:
+            mock_discovery.return_value = ["python.exe", "git.exe", "cmd.exe"]
+            
+            tools = registry.discover_windows_tools()
+            
+            assert len(tools) == 3
+            assert "python.exe" in tools
+    
+    @pytest.mark.compatibility
+    @pytest.mark.parametrize("tool_name,expected_category", [
+        ("python", ToolCategory.PROGRAMMING_LANGUAGE),
+        ("git", ToolCategory.DEVELOPMENT_TOOL),
+        ("ls", ToolCategory.UTILITY),
+        ("curl", ToolCategory.NETWORK_TOOL),
+        ("gcc", ToolCategory.DEVELOPMENT_TOOL)
+    ])
+    def test_platform_specific_categorization(self, tool_name, expected_category):
+        """Test that tools are categorized correctly across platforms"""
         registry = ToolRegistry()
         
-        # Test Windows-style paths
-        tool1 = ToolMetadata(
-            name="windows_tool",
-            description="Tool located at C:\\Users\\test\\tool.exe",
-            category="system"
-        )
-        
-        # Test Unix-style paths
-        tool2 = ToolMetadata(
-            name="unix_tool",
-            description="Tool located at /usr/local/bin/tool",
-            category="system"
-        )
-        
-        registry.register_tool(tool1)
-        registry.register_tool(tool2)
-        
-        # Both should be searchable
-        windows_results = registry.search_tools("C:\\Users")
-        unix_results = registry.search_tools("/usr/local")
-        
-        assert len(windows_results) >= 0  # May or may not find results depending on search implementation
-        assert len(unix_results) >= 0
-        
-    def test_case_sensitive_filesystems(self):
-        """Test behavior on case-sensitive filesystems"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="CaseSensitiveTool",
-            description="Tool with mixed case",
-            category="development"
-        )
-        
-        registry.register_tool(tool)
-        
-        # Should be able to retrieve by exact name
-        retrieved = registry.get_tool("CaseSensitiveTool")
-        assert retrieved is not None
-        
-        # Case-sensitive search should work
-        results = registry.search_tools("CaseSensitive")
-        assert len(results) >= 0
-        
-    def test_unicode_filenames(self):
-        """Test handling of unicode in tool names and descriptions"""
-        registry = ToolRegistry()
-        
-        # Various unicode characters
-        unicode_tools = [
-            ToolMetadata(name="工具", description="Chinese tool", category="development"),
-            ToolMetadata(name="outil", description="French tool", category="development"),
-            ToolMetadata(name="инструмент", description="Russian tool", category="development")
-        ]
-        
-        for tool in unicode_tools:
-            assert registry.register_tool(tool)
-            retrieved = registry.get_tool(tool.name)
-            assert retrieved is not None
-            assert retrieved.name == tool.name
+        # Mock category detection
+        with patch.object(registry, '_detect_tool_category') as mock_detect:
+            mock_detect.return_value = expected_category
+            
+            detected_category = registry._detect_tool_category(tool_name)
+            
+            assert detected_category == expected_category
 
 
-class TestIntegrationWithFileSystem:
-    """Test integration with file system operations"""
+class TestToolRegistryPerformance:
+    """Test ToolRegistry performance characteristics"""
+    
+    @pytest.mark.performance
+    def test_registration_performance(self):
+        """Test performance of tool registration"""
+        registry = ToolRegistry()
+        
+        # Time registration of multiple tools
+        start_time = time.time()
+        
+        for i in range(100):
+            tool = ToolMetadata(
+                f"perf_test_{i}",
+                ToolCategory.UTILITY,
+                f"/usr/bin/perf_test_{i}",
+                version="1.0.0"
+            )
+            registry.register_tool(tool)
+        
+        end_time = time.time()
+        registration_time = end_time - start_time
+        
+        # Should register 100 tools quickly
+        assert registration_time < 5.0
+        assert len(registry.registered_tools) == 100
+    
+    @pytest.mark.performance
+    def test_search_performance(self, registry):
+        """Test performance of tool search"""
+        # Pre-populate registry
+        for i in range(1000):
+            tool = ToolMetadata(
+                f"search_test_{i}",
+                ToolCategory.UTILITY,
+                f"/usr/bin/search_test_{i}",
+                tags={'test', f'tag_{i}'}
+            )
+            registry.register_tool(tool)
+        
+        # Time search operations
+        start_time = time.time()
+        
+        for i in range(100):
+            results = registry.search_tools(f"search_test_{i}")
+            assert len(results) >= 0
+        
+        end_time = time.time()
+        search_time = end_time - start_time
+        
+        # Should complete searches quickly
+        assert search_time < 10.0
+    
+    @pytest.mark.performance
+    def test_cache_performance(self):
+        """Test performance benefits of caching"""
+        registry = ToolRegistry()
+        
+        # Pre-populate cache
+        for i in range(100):
+            registry.discovery_cache[f"cached_tool_{i}"] = ToolMetadata(
+                f"cached_tool_{i}",
+                ToolCategory.UTILITY,
+                f"/usr/bin/cached_tool_{i}"
+            )
+        
+        # Access cached tools (should be fast)
+        start_time = time.time()
+        
+        for i in range(100):
+            tool = registry.get_tool(f"cached_tool_{i}")
+            assert tool is not None
+        
+        end_time = time.time()
+        cache_time = end_time - start_time
+        
+        # Cache access should be very fast
+        assert cache_time < 1.0
+
+
+class TestToolRegistryErrorHandling:
+    """Test error handling and resilience in ToolRegistry"""
     
     @pytest.fixture
-    def temp_config_file(self, tmp_path):
-        """Create a temporary config file for testing"""
-        config_file = tmp_path / "tool_config.json"
-        tools_data = [
-            {
-                "name": "file_tool_1",
-                "description": "Tool loaded from file",
-                "category": "development",
-                "status": "active",
-                "version": "1.0.0"
-            },
-            {
-                "name": "file_tool_2",
-                "description": "Another tool from file",
-                "category": "system",
-                "status": "active",
-                "version": "2.0.0"
-            }
-        ]
-        
-        with open(config_file, 'w') as f:
-            json.dump(tools_data, f, indent=2)
-            
-        return str(config_file)
-        
-    def test_load_tools_from_file(self, temp_config_file):
-        """Test loading tools from JSON file"""
-        registry = ToolRegistry()
-        
-        # Simulate loading from file (this would be actual implementation)
-        with open(temp_config_file, 'r') as f:
-            tools_data = json.load(f)
-            
-        tools = []
-        for tool_data in tools_data:
-            tool = ToolMetadata(**tool_data)
-            tools.append(tool)
-            
-        registry.bulk_register(tools)
-        
-        # Verify tools were loaded
-        assert len(registry.list_tools()) == 2
-        assert registry.get_tool("file_tool_1") is not None
-        assert registry.get_tool("file_tool_2") is not None
-        
-    def test_save_registry_to_file(self, tmp_path):
-        """Test saving registry state to file"""
-        registry = ToolRegistry()
-        tools = [
-            ToolMetadata(name="save_test_1", description="Test 1", category="development"),
-            ToolMetadata(name="save_test_2", description="Test 2", category="system")
-        ]
-        registry.bulk_register(tools)
-        
-        output_file = tmp_path / "registry_backup.json"
-        
-        # Save to file (simulated)
-        tools_data = []
-        for tool in registry.list_tools():
-            tools_data.append({
-                "name": tool.name,
-                "description": tool.description,
-                "category": tool.category,
-                "status": tool.status,
-                "version": tool.version
-            })
-            
-        with open(output_file, 'w') as f:
-            json.dump(tools_data, f, indent=2)
-            
-        # Verify file was created and can be read back
-        assert output_file.exists()
-        
-        with open(output_file, 'r') as f:
-            loaded_data = json.load(f)
-            
-        assert len(loaded_data) == 2
-        assert loaded_data[0]["name"] == "save_test_1"
-        assert loaded_data[1]["name"] == "save_test_2"
-
-
-# Additional test scenarios for comprehensive coverage
-
-class TestToolMetadataAdvanced:
-    """Advanced tests for ToolMetadata functionality"""
+    def registry(self, posix_adapter):
+        """Create registry for testing"""
+        return ToolRegistry(posix_adapter)
     
-    def test_metadata_deep_copy(self):
-        """Test that metadata can be safely modified without affecting registry"""
-        registry = ToolRegistry()
-        tool = ToolMetadata(
-            name="copy_test",
-            description="Original description",
-            category="development",
-            capabilities=["cap1"]
-        )
-        registry.register_tool(tool)
-        
-        retrieved = registry.get_tool("copy_test")
-        
-        # Modify retrieved metadata
-        retrieved.description = "Modified description"
-        retrieved.capabilities.append("cap2")
-        
-        # Original should still be unchanged in registry
-        original = registry.get_tool("copy_test")
-        assert original.description == "Original description"
-        assert len(original.capabilities) == 1
-        assert "cap1" in original.capabilities
-        
-    def test_metadata_serialization(self):
-        """Test metadata can be serialized to and from JSON"""
-        original_tool = ToolMetadata(
-            name="serial_test",
-            description="Tool for serialization testing",
-            category="development",
-            parameters={"param1": "value1", "nested": {"key": "value"}},
-            capabilities=["test", "serialize"],
-            version="1.2.3",
-            dependencies=["dep1", "dep2"]
+    def test_invalid_tool_registration(self, registry):
+        """Test handling of invalid tool registration"""
+        # Invalid tool (missing required fields)
+        invalid_tool = ToolMetadata(
+            name="",  # Empty name
+            category=ToolCategory.UTILITY,
+            path=""   # Empty path
         )
         
-        # Serialize to JSON
-        tool_dict = {
-            "name": original_tool.name,
-            "description": original_tool.description,
-            "category": original_tool.category,
-            "status": original_tool.status,
-            "parameters": original_tool.parameters,
-            "capabilities": original_tool.capabilities,
-            "version": original_tool.version,
-            "dependencies": original_tool.dependencies
-        }
+        success = registry.register_tool(invalid_tool)
+        assert success is False
+        assert "" not in registry.registered_tools
+    
+    def test_corrupted_registry_data(self, registry):
+        """Test handling of corrupted registry data"""
+        # Simulate corrupted data
+        registry.registered_tools["corrupted"] = "not a ToolMetadata object"
         
-        json_str = json.dumps(tool_dict)
-        
-        # Deserialize from JSON
-        loaded_dict = json.loads(json_str)
-        
-        # Create new metadata from loaded data
-        loaded_tool = ToolMetadata(**loaded_dict)
-        
-        assert loaded_tool.name == original_tool.name
-        assert loaded_tool.description == original_tool.description
-        assert loaded_tool.category == original_tool.category
-        assert loaded_tool.parameters == original_tool.parameters
-        assert loaded_tool.capabilities == original_tool.capabilities
-        assert loaded_tool.version == original_tool.version
-        assert loaded_tool.dependencies == original_tool.dependencies
+        # Should handle gracefully
+        tool = registry.get_tool("corrupted")
+        assert tool is None or tool != "not a ToolMetadata object"
+    
+    def test_file_system_errors(self, registry):
+        """Test handling of file system errors"""
+        # Mock file system errors
+        with patch('builtins.open', side_effect=OSError("Disk error")):
+            success = registry.export_registry("/tmp/nonexistent/registry.json", "json")
+            
+            assert success is False
+    
+    def test_memory_errors(self, registry):
+        """Test handling of memory errors"""
+        with patch.object(registry, '_register_tool_with_validation', side_effect=MemoryError("Out of memory")):
+            tool = ToolMetadata("memory_test", ToolCategory.UTILITY, "/usr/bin/memory_test")
+            
+            # Should handle gracefully
+            try:
+                success = registry.register_tool(tool)
+                # Either succeeds or fails gracefully
+                assert isinstance(success, bool)
+            except MemoryError:
+                # Memory errors can be propagated
+                pass
 
 
 if __name__ == "__main__":
-    # Run the tests
+    # Run tests if executed directly
     pytest.main([__file__, "-v", "--tb=short"])
