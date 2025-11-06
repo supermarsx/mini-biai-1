@@ -333,7 +333,7 @@ class TestWindowsAdapter:
         
         # Mock executable detection
         with patch('shutil.which') as mock_which:
-            mock_which.return_value = "C:\\Windows\\System32\\python.exe"
+            mock_which.return_value = "C:\Windows\System32\python.exe"
             
             is_executable = adapter.is_executable("python.exe")
             
@@ -345,7 +345,7 @@ class TestWindowsAdapter:
         adapter = WindowsAdapter()
         
         with patch('shutil.which') as mock_which:
-            mock_which.return_value = "C:\\Windows\\System32\\cmd.exe"
+            mock_which.return_value = "C:\Windows\System32\cmd.exe"
             
             # Should detect both with and without extension
             assert adapter.is_executable("cmd") is True
@@ -409,9 +409,9 @@ class TestWindowsAdapter:
         with patch('shutil.which') as mock_which:
             def which_side_effect(tool):
                 paths = {
-                    'python.exe': 'C:\\Python39\\python.exe',
-                    'git.exe': 'C:\\Program Files\\Git\\bin\\git.exe',
-                    'cmd.exe': 'C:\\Windows\\System32\\cmd.exe'
+                    'python.exe': 'C:\Python39\python.exe',
+                    'git.exe': 'C:\Program Files\Git\bin\git.exe',
+                    'cmd.exe': 'C:\Windows\System32\cmd.exe'
                 }
                 return paths.get(tool)
             
